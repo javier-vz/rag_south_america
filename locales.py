@@ -174,7 +174,15 @@ COUNTRY_DISPLAY = {
 }
 
 def t(language: str, key: str, **kwargs) -> str:
-    return STRINGS[language][key].format(**kwargs)
+    # Una traducción ausente en un idioma utiliza la equivalente en español.
+    # Los textos del explorador introducidos en v6.5 también cuentan con
+    # respaldo en app_lenguas.py para actualizaciones parciales.
+    template = STRINGS.get(language, {}).get(key)
+    if template is None:
+        template = STRINGS.get("es", {}).get(key)
+    if template is None:
+        raise KeyError(key)
+    return template.format(**kwargs)
 
 def country_label(language: str, country: str) -> str:
     return COUNTRY_DISPLAY.get(language, {}).get(country, country)

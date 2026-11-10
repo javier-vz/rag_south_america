@@ -22,7 +22,64 @@ from rag_core import (DEFAULT_MODEL, KnowledgeGraph, Retriever, answer_question,
                       normalize, readable_groq_error)
 from styles import CSS
 from explore_tree import ExplorerIndex
-from locales import LANGUAGES, QUESTIONS, country_label, t
+from locales import LANGUAGES, QUESTIONS, country_label, t as _locale_t
+
+# Compatibilidad: en una actualización parcial puede seguir cargado locales.py
+# de v6.4. Los nuevos textos del explorador deben funcionar igualmente.
+LEGACY_TRANSLATIONS = {'es': {'explore_country_help': 'Selecciona un país para ver las agrupaciones y lenguas asociadas.',
+        'explore_country_placeholder': 'Selecciona un país…',
+        'explore_group': 'Agrupación principal',
+        'explore_group_placeholder': 'Todas las agrupaciones del país',
+        'explore_subgroup': 'Subgrupo (opcional)',
+        'explore_subgroup_placeholder': 'Todos los subgrupos',
+        'explore_deeper': 'Grupo más específico (opcional)',
+        'explore_language': 'Lengua o variedad',
+        'explore_language_placeholder': 'Selecciona una lengua…',
+        'explore_search_help': 'Buscar directamente por nombre o código ISO',
+        'explore_no_matches': 'No hay lenguas asociadas a esta combinación.',
+        'explore_count': '{n} lenguas o variedades en esta selección.',
+        'explore_select': 'Elige una lengua para ver su ficha, o utiliza el buscador.',
+        'explore_no_country': 'Elige un país para comenzar, o escribe el nombre de una lengua en el buscador.',
+        'explore_ungrouped': 'Sin agrupación registrada ({n})',
+        'explore_groups_count': '{n} agrupaciones principales para este país.',
+        'about_responsible_title': 'Responsable y sugerencias',
+        'about_responsible': 'Responsable: Javier Maximiliano Vera Zúñiga. Puedes escribir para compartir '
+                             'comentarios o sugerencias sobre el proyecto.',
+        'source_links_label': 'Recursos y enlaces'},
+ 'pt': {'explore_country_help': 'Selecione um país para ver os agrupamentos e as línguas associados.',
+        'explore_country_placeholder': 'Selecione um país…',
+        'explore_group': 'Agrupamento principal',
+        'explore_group_placeholder': 'Todos os agrupamentos do país',
+        'explore_subgroup': 'Subgrupo (opcional)',
+        'explore_subgroup_placeholder': 'Todos os subgrupos',
+        'explore_deeper': 'Grupo mais específico (opcional)',
+        'explore_language': 'Língua ou variedade',
+        'explore_language_placeholder': 'Selecione uma língua…',
+        'explore_search_help': 'Pesquisar diretamente pelo nome ou código ISO',
+        'explore_no_matches': 'Não há línguas associadas a esta combinação.',
+        'explore_count': '{n} línguas ou variedades nesta seleção.',
+        'explore_select': 'Escolha uma língua para ver sua ficha ou use a pesquisa.',
+        'explore_no_country': 'Escolha um país para começar ou escreva o nome de uma língua na pesquisa.',
+        'explore_ungrouped': 'Sem agrupamento registrado ({n})',
+        'explore_groups_count': '{n} agrupamentos principais para este país.',
+        'about_responsible_title': 'Responsável e sugestões',
+        'about_responsible': 'Responsável: Javier Maximiliano Vera Zúñiga. Você pode escrever para compartilhar '
+                             'comentários ou sugestões sobre o projeto.',
+        'source_links_label': 'Recursos e links'}}
+
+def t(language: str, key: str, **kwargs) -> str:
+    try:
+        return _locale_t(language, key, **kwargs)
+    except KeyError as exc:
+        template = LEGACY_TRANSLATIONS.get(language, {}).get(key)
+        if template is None:
+            # Error legible cuando falte otra traducción no contemplada.
+            raise KeyError(
+                f"Falta el texto '{key}' para '{language}'. "
+                "Actualiza locales.py junto con app_lenguas.py."
+            ) from exc
+        return template.format(**kwargs)
+
 
 ROOT = Path(__file__).resolve().parent
 TTL = ROOT / "grafo_enriquecido.ttl"

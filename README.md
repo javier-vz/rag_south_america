@@ -1,4 +1,4 @@
-# RAG_SA v6.5 — Exploración por país, agrupación y lengua
+# RAG_SA v6.6 — Corrección de compatibilidad de traducciones
 
 Esta actualización mantiene **el estilo oscuro/verde** y conserva el motor de consultas, el modelo configurado en Groq y los archivos RDF. Introduce únicamente una navegación más compacta en «Explorar» y los textos solicitados en español y portugués.
 
@@ -36,3 +36,18 @@ python -m pytest -q
 ```
 
 Las pruebas abarcan recuperación, los idiomas, el envío de preguntas y los filtros anidados. La aplicación desplegada con datos y clave de producción todavía requiere comprobación manual.
+
+## Corrección v6.6 (sin cambios de datos ni interfaz)
+
+La v6.5 añadió 19 claves de traducción para los filtros anidados y la sección
+«Acerca de». Si se actualizaba solo `app_lenguas.py` o Streamlit continuaba
+utilizando `locales.py` de v6.4, la aplicación fallaba con `KeyError` al
+mostrar el selector de país.
+
+Ahora `app_lenguas.py` incluye un respaldo bilingüe **únicamente para estas
+19 claves**, y `locales.py` usa español como respaldo para una traducción
+ausente. Los textos aprobados son idénticos y la presentación no cambia.
+
+**Instalación recomendada:** reemplazar ambos archivos, `app_lenguas.py` y
+`locales.py`, a la vez. Conservar `explore_tree.py` de v6.5 y los demás archivos.
+No es necesario cambiar secretos, datos RDF, ni `rag_core.py`.
