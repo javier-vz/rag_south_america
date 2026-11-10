@@ -86,7 +86,7 @@ TTL = ROOT / "grafo_enriquecido.ttl"
 MATRIX = ROOT / "embed_matrix_v2.npy"
 ID_MAP = ROOT / "id_map_v2.pkl"
 
-st.set_page_config(page_title="Lenguas indígenas / Línguas indígenas", page_icon="🗺️",
+st.set_page_config(page_title="Lenguas indígenas / Línguas indígenas / Indigenous languages", page_icon="🗺️",
                    layout="wide", initial_sidebar_state="collapsed")
 st.markdown(CSS, unsafe_allow_html=True)
 
@@ -185,7 +185,7 @@ def card(entity: object, graph: KnowledgeGraph, lang: str):
     st.markdown(html_card, unsafe_allow_html=True)
 
 
-# Selector bilingüe. Nombres de lenguas y datos RDF se mantienen sin cambios.
+# Selector trilingüe. Nombres de lenguas y datos RDF se mantienen sin cambios.
 lang = st.session_state.get("lang", "es")
 st.markdown(f'''<div class="app-header"><div class="app-header-title">🗺️ {esc(t(lang, 'header'))}</div>
 <div class="app-header-sub">{esc(t(lang, 'subtitle'))}</div></div>''', unsafe_allow_html=True)
@@ -194,7 +194,7 @@ intro_col, language_col = st.columns([4, 1.3], vertical_alignment="center")
 with intro_col:
     st.markdown(f'<p class="intro">{esc(t(lang, "intro"))}</p>', unsafe_allow_html=True)
 with language_col:
-    selected_lang = st.selectbox("🌐 Idioma / Idioma", list(LANGUAGES),
+    selected_lang = st.selectbox("🌐 Idioma / Language", list(LANGUAGES),
                                  format_func=lambda value: LANGUAGES[value],
                                  index=list(LANGUAGES).index(lang), key="lang_choice")
 if selected_lang != lang:
@@ -292,7 +292,7 @@ with tab_chat:
                 from rag_core import Answer
                 answer = Answer(
                     t(lang, "unexpected_error"), [],
-                    "Erro de consulta" if lang == "pt" else "Error de consulta",
+                    ("Query error" if lang == "en" else "Erro de consulta" if lang == "pt" else "Error de consulta"),
                     t(lang, "unexpected_detail", name=type(exc).__name__)
                 )
             finished = time.perf_counter()
@@ -432,6 +432,8 @@ with tab_explore:
             writer = csv.writer(output)
             if lang == "pt":
                 writer.writerow(["id", "tipo", "lingua_ou_familia", "iso", "paises", "falantes_aproximados", "familias"])
+            elif lang == "en":
+                writer.writerow(["id", "type", "language_or_family", "iso", "countries", "approximate_speakers", "families"])
             else:
                 writer.writerow(["id", "tipo", "lengua_o_familia", "iso", "paises", "hablantes_aproximados", "familias"])
             for eid in csv_ids:
@@ -441,7 +443,9 @@ with tab_explore:
                                  "" if item.speakers is None else item.speakers,
                                  "; ".join(item.families)])
             st.download_button(t(lang, "download"), output.getvalue().encode("utf-8-sig"),
-                               file_name="selecao_linguas_rag_sa.csv" if lang == "pt" else "seleccion_lenguas_rag_sa.csv",
+                               file_name=("selecao_linguas_rag_sa.csv" if lang == "pt" else
+                                          "language_selection_rag_sa.csv" if lang == "en" else
+                                          "seleccion_lenguas_rag_sa.csv"),
                                mime="text/csv", use_container_width=True)
 
 with tab_about:

@@ -1,9 +1,9 @@
-"""Textos de la interfaz de RAG_SA en español y portugués.
+"""Textos de la interfaz de RAG_SA en español, portugués e inglés.
 
 No modifica las entidades, los datos RDF ni los nombres propios de las lenguas.
 """
 
-LANGUAGES = {"es": "Español", "pt": "Português"}
+LANGUAGES = {"es": "Español", "pt": "Português", "en": "English"}
 
 QUESTIONS = {
     "es": [
@@ -31,6 +31,19 @@ QUESTIONS = {
         "Em qual país se fala matsés?",
         "O que sabemos sobre o asháninka?",
         "Quais são algumas línguas com poucos falantes?",
+    ],
+    "en": [
+        "What do you know about the Kariri language?",
+        "Which Indigenous languages are spoken in Peru?",
+        "Which family does Jaqaru belong to?",
+        "Which languages belong to the Arawak family?",
+        "In which countries are Quechuan languages spoken?",
+        "Which languages are spoken in Bolivia?",
+        "Which languages are associated with Brazil?",
+        "Which languages belong to the Tupi-Guarani family?",
+        "In which country is Matsés spoken?",
+        "What do we know about Asháninka?",
+        "What are some languages with few speakers?",
     ],
 }
 
@@ -74,7 +87,7 @@ STRINGS = {
   "about_project_title": "El proyecto",
   "about_project": "Este proyecto surge como una forma de conversar con datos lingüísticos especializados. Parte especialmente de los registros y clasificaciones de Glottolog, organizados en un grafo de conocimiento, para hacer preguntas en lenguaje natural y explorar relaciones entre lenguas, agrupaciones y países. Es una manera adicional de consultar la información disponible.",
   "about_method_title": "Cómo funciona",
-  "about_method": "La aplicación utiliza un grafo de conocimiento para organizar información sobre lenguas y sus relaciones. Cuando haces una pregunta, el sistema busca datos relevantes en el grafo y utiliza un modelo de lenguaje para elaborar una respuesta en español o portugués.",
+  "about_method": "La aplicación utiliza un grafo de conocimiento para organizar información sobre lenguas y sus relaciones. Cuando haces una pregunta, el sistema busca datos relevantes en el grafo y utiliza un modelo de lenguaje para elaborar una respuesta en español, portugués o inglés.",
   "about_sources_title": "Fuentes de información",
   "about_sources": "El grafo combina registros y clasificaciones de Glottolog con información de Wikidata y descripciones de Wikipedia. Algunos textos también contienen referencias a Ethnologue; no se trata de una importación independiente de esa base de datos. Cada recurso aporta información diferente.",
   "about_technical_title": "Arquitectura técnica",
@@ -140,7 +153,7 @@ STRINGS = {
   "about_project_title": "O projeto",
   "about_project": "Este projeto surgiu como uma forma de conversar com dados linguísticos especializados. Parte especialmente dos registros e classificações do Glottolog, organizados em um grafo de conhecimento, para fazer perguntas em linguagem natural e explorar relações entre línguas, agrupamentos e países. É mais uma maneira de consultar as informações disponíveis.",
   "about_method_title": "Como funciona",
-  "about_method": "A aplicação utiliza um grafo de conhecimento para organizar informações sobre línguas e suas relações. Quando você faz uma pergunta, o sistema procura dados relevantes no grafo e utiliza um modelo de linguagem para elaborar uma resposta em espanhol ou português.",
+  "about_method": "A aplicação utiliza um grafo de conhecimento para organizar informações sobre línguas e suas relações. Quando você faz uma pergunta, o sistema procura dados relevantes no grafo e utiliza um modelo de linguagem para elaborar uma resposta em espanhol, português ou inglês.",
   "about_sources_title": "Fontes de informação",
   "about_sources": "O grafo combina registros e classificações do Glottolog com informações do Wikidata e descrições da Wikipédia. Alguns textos também contêm referências ao Ethnologue; não se trata de uma importação independente dessa base de dados. Cada recurso contribui com informações diferentes.",
   "about_technical_title": "Arquitetura técnica",
@@ -166,11 +179,132 @@ STRINGS = {
   "about_responsible": "Responsável: Javier Maximiliano Vera Zúñiga. Você pode escrever para compartilhar comentários ou sugestões sobre o projeto.",
   "source_links_label": "Recursos e links",
   "footer": "Línguas indígenas · América do Sul"
- }
+ },
+ "en": {'page_title': 'Indigenous Languages · South America',
+  'header': 'Indigenous languages · South America',
+  'subtitle': 'GraphRAG Explorer',
+  'intro': 'This project offers a way to explore and ask questions about specialized linguistic data on South '
+           'American languages. You can learn about a language, browse its linguistic groups, and explore the '
+           'relationships and countries recorded in the knowledge graph.',
+  'tab_chat': '💬 Questions',
+  'tab_explore': '🔎 Explore',
+  'tab_about': 'ℹ️ About',
+  'mode': 'Question type',
+  'suggested_mode': '📋 Suggested questions',
+  'free_mode': '✍️ Your own question',
+  'groq_ready': '🟢 Assistant available',
+  'model_info': 'Current model: {model}',
+  'groq_missing': 'To use the assistant, add your GROQ_API_KEY to your Streamlit secrets.',
+  'advanced': '⚙️ Options and connection',
+  'semantic': 'Extended semantic search (optional)',
+  'secret_info': 'Your API key is private and does not appear in the conversation history.',
+  'check_groq': 'Check Groq connection',
+  'check_success': 'All set! Groq is connected and the {model} model is available.',
+  'check_unavailable': 'Groq is connected, but {model} is not available for this account. You can change '
+                       'GROQ_MODEL.',
+  'question_select': 'Choose a question',
+  'question_placeholder': 'Select a question to get started…',
+  'question_free': 'Write your question here',
+  'question_or_write': 'Or write your own question (it takes priority over the selected one).',
+  'question_free_placeholder': 'Type what you would like to know…',
+  'ask': '✨ Ask',
+  'loading': 'Looking up information to answer your question…',
+  'preparing': 'Preparing relationships between languages…',
+  'missing_ttl': 'The `grafo_enriquecido.ttl` file is missing from the project folder.',
+  'load_error': 'The project data could not be loaded.',
+  'load_error_detail': 'Details: {name}. Please check the data files.',
+  'unexpected_error': "I couldn't process that question. Would you like to try again?",
+  'unexpected_detail': 'Internal error: {name}.',
+  'choose_first': 'Choose or enter a question to continue.',
+  'user': 'You',
+  'assistant': 'Assistant',
+  'groq_error': "I couldn't connect to Groq. You can find the details below.",
+  'evidence': '🔎 Relationships consulted',
+  'clear': '🗑️ Clear conversation',
+  'empty_chat': 'Where shall we start? Choose a question or write your own.',
+  'evidence_empty': "I couldn't find enough relationships to answer this question.",
+  'type_language': 'Language',
+  'type_family': 'Family or subgroup',
+  'families_related': 'Families and subgroups',
+  'more_info': 'Learn more',
+  'source': 'Link {n}',
+  'family_meta': '{n} associated languages',
+  'card_language': 'In this project, this language or variety is listed {location}{family}. You can ask the '
+                   'assistant to learn more.',
+  'card_family': 'This grouping includes {n} languages or varieties recorded in the graph. You can explore '
+                 'its members.',
+  'card_location': 'in {countries}',
+  'card_no_location': 'with its own entry',
+  'card_family_suffix': ' and linked to {families}',
+  'family_label': 'Family/families',
+  'kind': 'Type',
+  'languages': 'Languages',
+  'families': 'Families',
+  'country': 'Country',
+  'all_countries': 'All',
+  'family_filter': 'Language family',
+  'all_families': 'All',
+  'filter': 'Search by name or ISO',
+  'filter_placeholder': 'Quechua, Kariri, Jaqaru…',
+  'results': '{n} results · showing up to 50',
+  'download': '⬇️ Download selection as CSV',
+  'metric_languages': 'Languages and varieties',
+  'metric_families': 'Families and subgroups',
+  'metric_described': 'Languages with descriptions',
+  'about_project_title': 'The project',
+  'about_project': 'This project grew from the idea of having a conversation with specialized linguistic '
+                   "data. It draws especially on Glottolog's language records and classifications, organized "
+                   'into a knowledge graph, to support questions in natural language and the exploration of '
+                   'relationships among languages, groupings, and countries. It offers an additional way to '
+                   'consult this information.',
+  'about_method_title': 'How it works',
+  'about_method': 'The application uses a knowledge graph to organize information about languages and their '
+                  'relationships. When you ask a question, the system retrieves relevant information from the '
+                  'graph and uses a language model to produce a response in Spanish, Portuguese, or English.',
+  'about_sources_title': 'Information sources',
+  'about_sources': 'The graph combines records and classifications from Glottolog with information from '
+                   'Wikidata and descriptions from Wikipedia. Some descriptions also refer to Ethnologue; '
+                   'this does not mean that Ethnologue was imported as a separate dataset. Each resource '
+                   'contributes different kinds of information.',
+  'about_technical_title': 'Technical architecture',
+  'about_technical': 'The data is organized in RDF (Resource Description Framework). Retrieval combines '
+                     'explicit graph relationships with BM25 text search, and offers optional semantic search '
+                     'using multilingual embeddings. Responses are generated by a language model through the '
+                     'Groq API.',
+  'about_scope_title': 'Scope',
+  'about_scope': "The graph is not a complete inventory of South America's Indigenous languages. Some "
+                 'information may be missing or outdated, and estimates of speaker numbers should be treated '
+                 'with care.',
+  'chat_section_title': 'Ask the knowledge graph',
+  'chat_section_help': 'Choose a question or write your own.',
+  'explore_intro': 'Browse the records step by step: choose a country, a main grouping, and optionally a '
+                   'subgroup or language. You can also search directly by language name or ISO code.',
+  'explore_country_help': 'Choose a country to see its associated groups and languages.',
+  'explore_country_placeholder': 'Select a country…',
+  'explore_group': 'Main grouping',
+  'explore_group_placeholder': 'All groupings in this country',
+  'explore_subgroup': 'Subgroup (optional)',
+  'explore_subgroup_placeholder': 'All subgroups',
+  'explore_deeper': 'More specific group (optional)',
+  'explore_language': 'Language or variety',
+  'explore_language_placeholder': 'Select a language…',
+  'explore_search_help': 'Search directly by name or ISO code',
+  'explore_no_matches': 'No languages match this combination.',
+  'explore_count': '{n} languages or varieties in this selection.',
+  'explore_select': 'Choose a language to see its entry, or use the search field.',
+  'explore_no_country': 'Choose a country to begin, or enter a language name in the search field.',
+  'explore_ungrouped': 'No recorded grouping ({n})',
+  'explore_groups_count': '{n} main groupings for this country.',
+  'about_responsible_title': 'Contact and suggestions',
+  'about_responsible': 'Project lead: Javier Maximiliano Vera Zúñiga. Comments and suggestions about the '
+                       'project are welcome.',
+  'source_links_label': 'Resources and links',
+  'footer': 'Indigenous languages · South America'}
 }
 
 COUNTRY_DISPLAY = {
- "pt": {"Perú": "Peru", "Colombia": "Colômbia", "Bolivia": "Bolívia", "Ecuador": "Equador", "Paraguay": "Paraguai", "Chile": "Chile", "Surinam": "Suriname", "Panamá": "Panamá", "Argentina": "Argentina", "Venezuela": "Venezuela", "Guyana": "Guiana", "Uruguay": "Uruguai", "Francia": "França", "Brasil": "Brasil", "Trinidad y Tobago": "Trinidad e Tobago"}
+ "pt": {"Perú": "Peru", "Colombia": "Colômbia", "Bolivia": "Bolívia", "Ecuador": "Equador", "Paraguay": "Paraguai", "Chile": "Chile", "Surinam": "Suriname", "Panamá": "Panamá", "Argentina": "Argentina", "Venezuela": "Venezuela", "Guyana": "Guiana", "Uruguay": "Uruguai", "Francia": "França", "Brasil": "Brasil", "Trinidad y Tobago": "Trinidad e Tobago"},
+ "en": {"Perú": "Peru", "Colombia": "Colombia", "Bolivia": "Bolivia", "Ecuador": "Ecuador", "Paraguay": "Paraguay", "Surinam": "Suriname", "Panamá": "Panama", "Guyana": "Guyana", "Francia": "France", "Brasil": "Brazil", "Trinidad y Tobago": "Trinidad and Tobago", "Venezuela": "Venezuela", "Chile": "Chile", "Argentina": "Argentina", "Uruguay": "Uruguay"}
 }
 
 def t(language: str, key: str, **kwargs) -> str:
