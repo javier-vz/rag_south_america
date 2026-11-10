@@ -1,33 +1,54 @@
-# RAG_SA v6.6 — Corrección de compatibilidad de traducciones
+# RAG South America — v6.9
 
-Esta actualización mantiene **el estilo oscuro/verde** y conserva el motor de consultas, el modelo configurado en Groq y los archivos RDF. Introduce únicamente una navegación más compacta en «Explorar» y los textos solicitados en español y portugués.
+**v6.8: continuidad de la conversación · v6.9: navegación desde las respuestas**
 
-## Cambios
+Esta actualización parte de la versión trilingüe v6.7. Mantiene el diseño oscuro/verde, las tres lenguas de la interfaz, la recuperación RDF/BM25 (con MiniLM opcional) y **Groq como generador de todas las respuestas**.
 
-- **Exploración encadenada:** elige un país, una agrupación principal, un subgrupo opcional y una lengua. Las opciones se limitan a los registros relacionados con los filtros anteriores; ya no se abre una lista plana con todas las familias y subfamilias.
-- **Búsqueda directa:** también puedes buscar una lengua por nombre o código ISO, incluso sin seleccionar un país.
-- **Lenguas sin familia:** quedan accesibles mediante «Sin agrupación registrada», en vez de desaparecer.
-- **Presentación:** explica que el proyecto surge para conversar con datos lingüísticos especializados, especialmente a partir de Glottolog. Describe las aportaciones de Wikipedia y Wikidata y señala que Ethnologue aparece citado en algunas descripciones, **sin atribuirle una importación separada**.
-- **Enlaces:** Glottolog, Wikipedia, Wikidata y Ethnologue tienen sus enlaces visibles en «Acerca de / Sobre o projeto».
-- **Responsable y sugerencias:** Javier Maximiliano Vera Zúñiga — jxvera@gmail.com.
+## Qué se añadió
 
-### Nota sobre «agrupación» y «subgrupo»
+### v6.8 — Seguimiento de preguntas
 
-El grafo original registra relaciones entre lenguas y agrupaciones, pero no garantiza una jerarquía explícita entre todos los nodos de familia. Para navegar de lo general a lo específico, los selectores comparan **conjuntos de lenguas asociadas**. Es solo una organización de menús, no una afirmación taxonómica nueva ni una modificación de las relaciones RDF.
+Después de «¿Qué sabes sobre la lengua Kariri?», puedes preguntar «¿Y dónde se hablaba?» o «¿Se está intentando recuperar?» sin repetir Kariri. Funciona también con *E onde era falada?* y *And where was it spoken?*.
 
-## Actualizar desde v6.4
+- Se conserva **el identificador RDF de la lengua** que acaba de consultarse, no una transcripción completa que pueda introducir errores.
+- Una pregunta sobre otra lengua explícitamente nombrada cambia de tema.
+- Las consultas generales sobre un país no heredan accidentalmente la lengua anterior.
+- Si el nombre de una lengua no aparece en el grafo, el asistente puede reconocer esa falta de información sin asignarle los datos de otra lengua.
+- Limpiar la conversación elimina también la memoria del tema.
+- Las preguntas siguen pasando por Groq y conservan el idioma elegido en la interfaz.
 
-Reemplaza `app_lenguas.py` y `locales.py` y **añade** `explore_tree.py` en la misma carpeta del proyecto. No necesitas cambiar `rag_core.py`, `styles.py`, `requirements.txt`, los tres archivos de datos ni tus secretos de Streamlit.
+La continuidad se centra en una **lengua identificable**. No es una memoria general ni resuelve todas las referencias ambiguas.
 
-## Instalar desde el ZIP completo
+### v6.9 — Navegación contextual
+
+Debajo de las respuestas aparecen, cuando las relaciones RDF lo permiten, botones como:
+
+- **Ver ficha: Jaqaru** → abre la ficha en «Explorar».
+- **Explorar: Aymaran** → abre la agrupación y permite elegir una de sus lenguas registradas.
+- **Ver país: Perú** → abre «Explorar» con el país seleccionado y sus agrupaciones filtradas.
+
+Se mantienen las pestañas originales mediante el estado controlado de `st.tabs`, sin reemplazar la interfaz por otra navegación. Los botones **no inventan países ni familias**. Por ejemplo, Kariri puede tener descripción histórica sobre Brasil, pero si el nodo no posee la relación `wikidata_countries`, no se crea un botón de país desde ese dato textual.
+
+## Instalación / actualización
+
+**Si ya tienes la v6.7:** sustituye los archivos de la actualización mínima:
+
+1. `app_lenguas.py`
+2. `rag_core.py`
+3. `locales.py`
+4. `requirements.txt`
+5. Añade el nuevo `conversation_nav.py`.
+
+No reemplaces tus datos RDF ni tus secretos. El módulo `explore_tree.py` y `styles.py` no han cambiado.
+
+**Requisito importante:** usamos `st.tabs(..., on_change="rerun", key="main_tabs")`, disponible en **Streamlit 1.55 o superior**. Por eso se actualizó el mínimo de `requirements.txt` a `streamlit>=1.55,<2`.
 
 ```bash
-python descargar_datos.py
 pip install -r requirements.txt
 streamlit run app_lenguas.py
 ```
 
-Configura `GROQ_API_KEY` en los secretos de Streamlit. No la incluyas en GitHub.
+Si comienzas desde cero, usa `python descargar_datos.py` o copia los tres archivos originales del repositorio: `grafo_enriquecido.ttl`, `embed_matrix_v2.npy` e `id_map_v2.pkl`. La búsqueda ampliada con embeddings sigue siendo opcional.
 
 ## Pruebas
 
@@ -35,19 +56,22 @@ Configura `GROQ_API_KEY` en los secretos de Streamlit. No la incluyas en GitHub.
 python -m pytest -q
 ```
 
-Las pruebas abarcan recuperación, los idiomas, el envío de preguntas y los filtros anidados. La aplicación desplegada con datos y clave de producción todavía requiere comprobación manual.
+**95 pruebas automatizadas aprobadas** en el entorno de preparación, incluyendo regresiones de la versión anterior, preguntas de seguimiento en los tres idiomas y navegación por relaciones RDF. La conexión con la cuenta real de Groq y el comportamiento visual en tu despliegue de Streamlit requieren una comprobación manual.
 
-## Corrección v6.6 (sin cambios de datos ni interfaz)
+### Comprobación manual recomendada
 
-La v6.5 añadió 19 claves de traducción para los filtros anidados y la sección
-«Acerca de». Si se actualizaba solo `app_lenguas.py` o Streamlit continuaba
-utilizando `locales.py` de v6.4, la aplicación fallaba con `KeyError` al
-mostrar el selector de país.
+1. Pregunta en español «¿Qué sabes sobre la lengua kariri?»; luego «¿Y dónde se hablaba?». La segunda respuesta debe seguir refiriéndose a Kariri.
+2. Pregunta por Jaqaru; utiliza «Ver ficha», «Explorar: Aymaran» y «Ver país: Perú». Deben abrir «Explorar» con el contexto indicado.
+3. Cambia a Português e English; formula preguntas de seguimiento y verifica que la respuesta use el idioma elegido.
+4. Pregunta por una lengua nueva y confirma que deja de usar la anterior.
+5. Consulta lenguas de Perú y, después, una pregunta sin referente; no debe atribuirle arbitrariamente información de Kariri.
 
-Ahora `app_lenguas.py` incluye un respaldo bilingüe **únicamente para estas
-19 claves**, y `locales.py` usa español como respaldo para una traducción
-ausente. Los textos aprobados son idénticos y la presentación no cambia.
+## Archivos modificados
 
-**Instalación recomendada:** reemplazar ambos archivos, `app_lenguas.py` y
-`locales.py`, a la vez. Conservar `explore_tree.py` de v6.5 y los demás archivos.
-No es necesario cambiar secretos, datos RDF, ni `rag_core.py`.
+`app_lenguas.py`, `rag_core.py`, `locales.py`, `requirements.txt`.
+
+**Archivo nuevo:** `conversation_nav.py` y pruebas `tests/test_conversation_navigation_v69.py`.
+
+**Sin cambios:** `grafo_enriquecido.ttl`, `explore_tree.py`, `styles.py`, embeddings, motor BM25, secretos y modelo Groq configurado.
+
+**No se modificó GitHub.**

@@ -302,6 +302,46 @@ STRINGS = {
   'footer': 'Indigenous languages · South America'}
 }
 
+
+# v6.8/v6.9: traducciones de continuidad y navegación contextual.
+NEW_NAV_TEXTS = {
+    "es": {
+        "continued_topic": "Seguimos hablando de {name}.",
+        "nav_language": "Ver ficha: {name}",
+        "nav_family": "Explorar: {name}",
+        "nav_country": "Ver país: {name}",
+        "nav_from_answer": "Ficha abierta desde la conversación",
+        "nav_choose_member": "Lenguas de esta agrupación",
+        "nav_country_count": "{n} lenguas o variedades asociadas a este país en el grafo.",
+        "nav_family_members": "Algunas lenguas vinculadas: {names}.",
+        "nav_close": "Cerrar esta ficha",
+    },
+    "pt": {
+        "continued_topic": "Continuamos falando sobre {name}.",
+        "nav_language": "Ver ficha: {name}",
+        "nav_family": "Explorar: {name}",
+        "nav_country": "Ver país: {name}",
+        "nav_from_answer": "Ficha aberta a partir da conversa",
+        "nav_choose_member": "Línguas deste agrupamento",
+        "nav_country_count": "{n} línguas ou variedades associadas a este país no grafo.",
+        "nav_family_members": "Algumas línguas relacionadas: {names}.",
+        "nav_close": "Fechar esta ficha",
+    },
+    "en": {
+        "continued_topic": "We're still talking about {name}.",
+        "nav_language": "View entry: {name}",
+        "nav_family": "Explore: {name}",
+        "nav_country": "View country: {name}",
+        "nav_from_answer": "Entry opened from the conversation",
+        "nav_choose_member": "Languages in this group",
+        "nav_country_count": "{n} languages or varieties are linked to this country in the graph.",
+        "nav_family_members": "Some associated languages: {names}.",
+        "nav_close": "Close this entry",
+    },
+}
+for _language, _new_texts in NEW_NAV_TEXTS.items():
+    STRINGS[_language].update(_new_texts)
+
 COUNTRY_DISPLAY = {
  "pt": {"Perú": "Peru", "Colombia": "Colômbia", "Bolivia": "Bolívia", "Ecuador": "Equador", "Paraguay": "Paraguai", "Chile": "Chile", "Surinam": "Suriname", "Panamá": "Panamá", "Argentina": "Argentina", "Venezuela": "Venezuela", "Guyana": "Guiana", "Uruguay": "Uruguai", "Francia": "França", "Brasil": "Brasil", "Trinidad y Tobago": "Trinidad e Tobago"},
  "en": {"Perú": "Peru", "Colombia": "Colombia", "Bolivia": "Bolivia", "Ecuador": "Ecuador", "Paraguay": "Paraguay", "Surinam": "Suriname", "Panamá": "Panama", "Guyana": "Guyana", "Francia": "France", "Brasil": "Brazil", "Trinidad y Tobago": "Trinidad and Tobago", "Venezuela": "Venezuela", "Chile": "Chile", "Argentina": "Argentina", "Uruguay": "Uruguay"}

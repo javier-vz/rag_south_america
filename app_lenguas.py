@@ -22,6 +22,7 @@ from rag_core import (DEFAULT_MODEL, KnowledgeGraph, Retriever, answer_question,
                       normalize, readable_groq_error)
 from styles import CSS
 from explore_tree import ExplorerIndex
+from conversation_nav import (resolve_question, navigation_targets, focus_entity)
 from locales import LANGUAGES, QUESTIONS, country_label, t as _locale_t
 
 # Compatibilidad: en una actualización parcial puede seguir cargado locales.py
@@ -198,6 +199,12 @@ with language_col:
                                  format_func=lambda value: LANGUAGES[value],
                                  index=list(LANGUAGES).index(lang), key="lang_choice")
 if selected_lang != lang:
+    # Las pestañas tienen etiquetas distintas al cambiar de idioma.
+    previous_tabs = [t(lang, k) for k in ("tab_chat", "tab_explore", "tab_about")]
+    next_tabs = [t(selected_lang, k) for k in ("tab_chat", "tab_explore", "tab_about")]
+    current_tab = st.session_state.get("main_tabs", previous_tabs[0])
+    st.session_state["main_tabs"] = (next_tabs[previous_tabs.index(current_tab)]
+                                      if current_tab in previous_tabs else next_tabs[0])
     st.session_state.lang = selected_lang
     st.rerun()
 
@@ -216,11 +223,41 @@ except Exception as error:
     st.caption(t(lang, "load_error_detail", name=type(error).__name__))
     st.stop()
 
+# Pestañas controlables: permiten navegar desde una respuesta a «Explorar».
+# on_change y key requieren Streamlit >= 1.55.
 tab_chat, tab_explore, tab_about = st.tabs(
-    [t(lang, "tab_chat"), t(lang, "tab_explore"), t(lang, "tab_about")])
+    [t(lang, "tab_chat"), t(lang, "tab_explore"), t(lang, "tab_about")],
+    on_change="rerun", key="main_tabs")
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
+
+
+def open_in_explorer(kind: str, value: str):
+    """Acción de navegación, ejecutada antes del siguiente rerun."""
+    destination = focus_entity(graph, kind, value)
+    if destination is None:
+        return
+    st.session_state["nav_focus"] = {"kind": kind, "value": value}
+    # Evita que filtros anteriores oculten el destino.
+    for widget_key in list(st.session_state.keys()):
+        if widget_key.startswith(("explore_group_", "explore_sub_", "explore_deep_", "explore_language_")):
+            del st.session_state[widget_key]
+    if kind == "country":
+        st.session_state["explore_country"] = value
+        st.session_state["explore_search"] = ""
+    elif kind == "language":
+        country = destination.countries[0] if destination.countries else ""
+        st.session_state["explore_country"] = country
+        st.session_state["explore_search"] = destination.label
+    else:
+        st.session_state["explore_country"] = ""
+        st.session_state["explore_search"] = ""
+    st.session_state["main_tabs"] = t(st.session_state.get("lang", "es"), "tab_explore")
+
+
+def close_explorer_focus():
+    st.session_state.pop("nav_focus", None)
 
 with tab_chat:
     st.markdown(f"### {t(lang, 'chat_section_title')}")
@@ -269,6 +306,7 @@ with tab_chat:
     question = (free_question or "").strip() or (suggested_question or "").strip()
     if submitted and question:
         question = question.strip()
+        resolved = resolve_question(question, st.session_state.messages, graph)
         st.session_state.messages.append({"role": "user", "text": question, "lang": lang})
         with st.spinner(t(lang, "loading")):
             started = time.perf_counter()
@@ -282,7 +320,7 @@ with tab_chat:
             retrieval_ready = time.perf_counter()
             try:
                 answer = answer_question(
-                    question, graph, retriever,
+                    resolved.for_retrieval, graph, retriever,
                     api_key=get_secret("GROQ_API_KEY"),
                     model=chosen_model,
                     top_k=9,
@@ -302,6 +340,10 @@ with tab_chat:
             "notice": answer.notice,
             "elapsed": finished-started,
             "preparation": retrieval_ready-started,
+            "subject_ids": answer.subject_ids,
+            "country_filter": answer.country_filter,
+            "family_filter": answer.family_filter,
+            "continued": resolved.continued,
             "lang": lang,
         })
         st.rerun()
@@ -310,7 +352,7 @@ with tab_chat:
 
     if st.session_state.messages:
         st.divider()
-        for message in st.session_state.messages[-20:]:
+        for message_index, message in enumerate(st.session_state.messages[-20:]):
             msg_lang = message.get("lang", "es")
             if message["role"] == "user":
                 st.markdown(f'<div class="msg-user"><div class="lbl">{esc(t(msg_lang,"user"))}</div>'
@@ -322,8 +364,29 @@ with tab_chat:
                             unsafe_allow_html=True)
                 elapsed = message.get("elapsed")
                 timing = f" · {elapsed:.1f} s" if elapsed is not None else ""
+                if message.get("continued") and message.get("subject_ids"):
+                    subject = graph.entities.get(message["subject_ids"][0])
+                    if subject:
+                        st.caption(t(msg_lang, "continued_topic", name=subject.label))
                 if message.get("notice"):
                     st.warning(t(msg_lang, "groq_error"))
+                if not message.get("notice"):
+                    actions = navigation_targets(
+                        graph, subject_ids=message.get("subject_ids", []),
+                        evidence_ids=message.get("evidence", []),
+                        country=message.get("country_filter"),
+                        family=message.get("family_filter"))
+                    if actions:
+                        action_columns = st.columns(len(actions))
+                        for col, action in zip(action_columns, actions):
+                            with col:
+                                title = t(lang, "nav_" + action.kind,
+                                          name=(country_label(lang, action.name)
+                                                if action.kind == "country" else action.name))
+                                st.button(title, key=f"nav_{message_index}_{action.kind}_{action.value}",
+                                          use_container_width=True,
+                                          on_click=open_in_explorer,
+                                          args=(action.kind, action.value))
                 with st.expander(t(lang, "evidence"), expanded=False):
                     st.caption(f'{message.get("method", "")} {timing}')
                     if message.get("notice"):
@@ -338,6 +401,41 @@ with tab_chat:
 with tab_explore:
     st.markdown(t(lang, "explore_intro"))
     explorer = ExplorerIndex.from_graph(graph)
+    focus = st.session_state.get("nav_focus")
+    if focus:
+        focus_kind, focus_value = focus.get("kind", ""), focus.get("value", "")
+        focused = focus_entity(graph, focus_kind, focus_value)
+        if focused is not None:
+            if focus_kind == "country":
+                st.markdown(f"#### {esc(country_label(lang, focus_value))}")
+                st.caption(t(lang, "nav_country_count", n=len(focused)))
+            else:
+                st.caption(t(lang, "nav_from_answer"))
+                card(focused, graph, lang)
+                if focus_kind == "language":
+                    related = navigation_targets(graph, subject_ids=[focused.id])[1:]
+                    if related:
+                        columns = st.columns(len(related))
+                        for col, target in zip(columns, related):
+                            with col:
+                                st.button(t(lang, "nav_" + target.kind,
+                                            name=(country_label(lang, target.name)
+                                                  if target.kind == "country" else target.name)),
+                                          key=f"focus_related_{target.kind}_{target.value}",
+                                          on_click=open_in_explorer,
+                                          args=(target.kind, target.value), use_container_width=True)
+                elif focus_kind == "family" and focused.members:
+                    valid_members = [mid for mid in focused.members if mid in graph.entities]
+                    if valid_members:
+                        chosen_member = st.selectbox(
+                            t(lang, "nav_choose_member"), [""] + valid_members,
+                            format_func=lambda mid: (graph.entities[mid].label if mid
+                                                     else t(lang, "explore_language_placeholder")),
+                            key=f"focus_family_member_{focused.id}")
+                        if chosen_member in valid_members:
+                            card(graph.entities[chosen_member], graph, lang)
+            st.button(t(lang, "nav_close"), key="nav_close_focus", on_click=close_explorer_focus)
+            st.divider()
 
     # El país reduce las opciones. Sin un país elegido, el buscador permite
     # encontrar lenguas por nombre o ISO en todo el grafo.

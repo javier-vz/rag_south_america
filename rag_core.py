@@ -454,6 +454,10 @@ class Answer:
     evidence: list[str]
     method: str
     notice: str = ""
+    # Metadatos para seguimiento de tema y navegación; no aparecen en el texto.
+    subject_ids: list[str] = field(default_factory=list)
+    country_filter: Optional[str] = None
+    family_filter: Optional[str] = None
 
 
 def format_examples(langs: list[Entity], count=10) -> str:
@@ -884,7 +888,10 @@ def answer_question(question: str, graph: KnowledgeGraph, retriever: Retriever,
             method = ("RDF + Groq" if factual else
                       "BM25 + embeddings + Groq" if retrieved.semantic_available else
                       "BM25 + Groq")
-            return Answer(generated, ids, method)
+            return Answer(generated, ids, method,
+                          subject_ids=list(retrieved.subject_ids),
+                          country_filter=retrieved.country_filter,
+                          family_filter=retrieved.family_filter)
         except Exception as error:
             notice = readable_groq_error(error, language=language)
     else:
@@ -904,4 +911,7 @@ def answer_question(question: str, graph: KnowledgeGraph, retriever: Retriever,
                    "Ahora mismo no puedo responderte porque no pude conectar con el asistente. "
                    "Intenta nuevamente en un momento.")
     method = {"es": "Groq no disponible", "pt": "Groq indisponível", "en": "Groq unavailable"}[language]
-    return Answer(unavailable, ids, method, notice)
+    return Answer(unavailable, ids, method, notice,
+                  subject_ids=list(retrieved.subject_ids),
+                  country_filter=retrieved.country_filter,
+                  family_filter=retrieved.family_filter)
