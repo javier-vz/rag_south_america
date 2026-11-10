@@ -167,9 +167,6 @@ if "messages" not in st.session_state:
 with tab_chat:
     st.markdown(f"### {t(lang, 'chat_section_title')}")
     st.caption(t(lang, "chat_section_help"))
-    mode = st.radio(t(lang, "mode"), ["suggested", "free"],
-                    format_func=lambda value: t(lang, "suggested_mode" if value == "suggested" else "free_mode"),
-                    horizontal=True, label_visibility="collapsed", key="question_mode_v6")
     chosen_model = get_secret("GROQ_MODEL", DEFAULT_MODEL)
     if has_groq_key():
         st.caption(t(lang, "groq_ready"))
@@ -195,19 +192,24 @@ with tab_chat:
             except Exception as exc:
                 st.error(readable_groq_error(exc, language=lang))
 
+    # Ambas vías están disponibles a la vez: no es necesario seleccionar un modo
+    # ni pulsar un círculo. Si se escribe una pregunta, esa tiene prioridad.
     with st.form("question_form", clear_on_submit=False):
-        if mode == "suggested":
-            question = st.selectbox(t(lang, "question_select"), [""] + QUESTIONS[lang],
-                                    format_func=lambda value: value or t(lang, "question_placeholder"),
-                                    label_visibility="collapsed", key=f"question_suggested_{lang}")
-        else:
-            # Campo vacío por defecto: el texto de ejemplo nunca debe parecer una respuesta ya escrita.
-            question = st.text_input(t(lang, "question_free"), label_visibility="visible",
-                                     placeholder=t(lang, "question_free_placeholder"), max_chars=450,
-                                     key=f"question_free_{lang}")
+        suggested_question = st.selectbox(
+            t(lang, "question_select"), [""] + QUESTIONS[lang],
+            format_func=lambda value: value or t(lang, "question_placeholder"),
+            key=f"question_suggested_{lang}",
+        )
+        st.caption(t(lang, "question_or_write"))
+        free_question = st.text_input(
+            t(lang, "question_free"),
+            placeholder=t(lang, "question_free_placeholder"), max_chars=450,
+            key=f"question_free_{lang}",
+        )
         submitted = st.form_submit_button(t(lang, "ask"), type="primary", use_container_width=True)
 
-    if submitted and question and question.strip():
+    question = (free_question or "").strip() or (suggested_question or "").strip()
+    if submitted and question:
         question = question.strip()
         st.session_state.messages.append({"role": "user", "text": question, "lang": lang})
         with st.spinner(t(lang, "loading")):
