@@ -12,12 +12,14 @@ import csv
 import html
 import io
 import os
+import time
 from pathlib import Path
 
 import streamlit as st
 
 from rag_core import (DEFAULT_MODEL, KnowledgeGraph, Retriever, answer_question,
-                      detect_country, detect_family, load_vectors)
+                      detect_country, detect_family, load_vectors,
+                      normalize, readable_groq_error)
 from styles import CSS
 
 ROOT = Path(__file__).resolve().parent
@@ -39,13 +41,20 @@ def clean_multiline(text: str) -> str:
 
 
 def get_secret(name, fallback="") -> str:
-    value = os.getenv(name)
+    """Lee primero entorno, luego Secrets de Streamlit (Cloud o instalación local)."""
+    value = os.getenv(name, "").strip()
     if value:
         return value
     try:
-        return str(st.secrets.get(name, fallback))
+        value = st.secrets.get(name, fallback)
+        return str(value).strip() if value is not None else fallback
     except Exception:
         return fallback
+
+
+def has_groq_key() -> bool:
+    key = get_secret("GROQ_API_KEY")
+    return bool(key and key.lower() not in {"tu_clave_aqui", "your_api_key", "gsk_xxx"})
 
 
 @st.cache_resource(show_spinner=False)
@@ -80,29 +89,27 @@ PREGUNTAS = [
 
 def evidence_view(graph: KnowledgeGraph, ids: list[str]):
     if not ids:
+        st.caption("No hay fichas que sustenten esta pregunta con suficiente precisión.")
         return
-    with st.expander(f"🔎 Ver evidencia utilizada ({len(ids)} registros)", expanded=False):
-        for i, eid in enumerate(ids[:12], 1):
-            e = graph.entities.get(eid)
-            if not e:
-                continue
-            family_labels = [graph.entities[f].label for f in e.families if f in graph.entities]
-            metadata = [f"ID {e.id}", e.kind]
-            if e.iso:
-                metadata.append(f"ISO {e.iso}")
-            if e.countries:
-                metadata.append(", ".join(e.countries))
-            if e.kind == "Language":
-                metadata.append(f"hablantes: {e.speaker_status}")
-            line = f'<div class="evidence"><b>[G{i}] {esc(e.label)}</b> · {esc(" · ".join(metadata))}'
-            if family_labels:
-                line += f'<div>Familias del grafo: {esc(", ".join(family_labels[:5]))}</div>'
-            if e.sources:
-                links = [f'<a target="_blank" rel="noopener noreferrer" href="{esc(url)}">Fuente {n}</a>'
-                         for n, url in enumerate(e.sources[:3], 1)]
-                line += '<div>Enlaces registrados: ' + ' · '.join(links) + '</div>'
-            line += '</div>'
-            st.markdown(line, unsafe_allow_html=True)
+    for i, eid in enumerate(ids[:12], 1):
+        e = graph.entities.get(eid)
+        if not e:
+            continue
+        family_labels = [graph.entities[f].label for f in e.families if f in graph.entities]
+        metadata = [f"ID {e.id}", e.kind]
+        if e.iso:
+            metadata.append(f"ISO {e.iso}")
+        if e.countries:
+            metadata.append(", ".join(e.countries))
+        line = f'<div class="evidence"><b>[G{i}] {esc(e.label)}</b> · {esc(" · ".join(metadata))}'
+        if family_labels:
+            line += f'<div>Familias y subgrupos: {esc(", ".join(family_labels[:5]))}</div>'
+        if e.sources:
+            links = [f'<a target="_blank" rel="noopener noreferrer" href="{esc(url)}">Fuente {n}</a>'
+                     for n, url in enumerate(e.sources[:3], 1)]
+            line += '<div>Enlaces originales: ' + ' · '.join(links) + '</div>'
+        line += '</div>'
+        st.markdown(line, unsafe_allow_html=True)
 
 
 def card(entity: object, graph: KnowledgeGraph):
@@ -111,10 +118,10 @@ def card(entity: object, graph: KnowledgeGraph):
     metadata = [f"ISO {e.iso}"] if e.iso else []
     metadata.extend(e.countries)
     if e.kind == "Language":
-        metadata.append(f"Hablantes: {e.speaker_status}")
+        metadata.append(f"Hablantes estimados (fecha variable): {e.speaker_status}")
     else:
         metadata.append(f"{len(e.members)} lenguas asociadas")
-    description = (e.comment or e.wiki or e.description).strip()
+    description = (e.wiki or e.description or e.comment).strip()
     if len(description) > 260:
         description = description[:257].rsplit(" ", 1)[0] + "…"
     families = [graph.entities[f].label for f in e.families if f in graph.entities]
@@ -160,10 +167,30 @@ if "messages" not in st.session_state:
 with tab_chat:
     mode = st.radio("Modo de pregunta", ["📋 Preguntas sugeridas", "✍️ Pregunta libre"],
                     horizontal=True, label_visibility="collapsed", key="question_mode")
-    if get_secret("GROQ_API_KEY"):
-        st.caption("Generación de respuestas: Groq · recuperación RDF + BM25 + embeddings")
+    chosen_model = get_secret("GROQ_MODEL", DEFAULT_MODEL)
+    if has_groq_key():
+        st.caption(f"🟢 Clave Groq detectada · Modelo: {chosen_model}")
     else:
-        st.warning("Configura GROQ_API_KEY en .streamlit/secrets.toml para activar las respuestas con Groq.")
+        st.warning("Falta una API key válida de Groq. Añade GROQ_API_KEY en Streamlit Secrets para activar el LLM.")
+
+    with st.expander("⚙️ Opciones y conexión", expanded=False):
+        extended_search = st.checkbox("Búsqueda semántica ampliada (puede tardar más la primera vez)",
+                                      value=False, key="extended_search")
+        st.caption("La clave no se muestra ni se envía al historial.")
+        if st.button("Probar API y modelo", disabled=not has_groq_key(), key="check_groq"):
+            try:
+                from groq import Groq
+                groq_client = Groq(api_key=get_secret("GROQ_API_KEY"),
+                                   timeout=6.0, max_retries=0)
+                available = {m.id for m in groq_client.models.list().data}
+                if chosen_model in available:
+                    st.success(f"Groq responde y el modelo {chosen_model} está disponible.")
+                else:
+                    st.error(f"La clave funciona, pero {chosen_model} no aparece entre los modelos disponibles. "
+                             "Cambia GROQ_MODEL por uno accesible en tu cuenta.")
+            except Exception as exc:
+                st.error(readable_groq_error(exc))
+
     with st.form("question_form", clear_on_submit=False):
         if mode.startswith("📋"):
             question = st.selectbox("Selecciona una pregunta", [""] + PREGUNTAS,
@@ -177,22 +204,31 @@ with tab_chat:
     if submitted and question and question.strip():
         question = question.strip()
         st.session_state.messages.append({"role": "user", "text": question})
-        with st.spinner("Consultando el grafo…"):
-            # Groq redacta SIEMPRE la respuesta; las consultas estructuradas
-            # calculan datos verificables para fundamentar su redacción.
-            try:
-                retriever.embedder = load_sentence_model()
-            except Exception:
-                retriever.embedder = None  # BM25 como respaldo de recuperación.
+        with st.spinner("Buscando evidencia y redactando con Groq…"):
+            started = time.perf_counter()
+            # Un Transformer se usa solo en preguntas abiertas: las consultas
+            # por país/familia se resuelven por relaciones RDF más rápido.
+            retriever.embedder = None
+            if extended_search:
+                try:
+                    retriever.embedder = load_sentence_model()
+                except Exception:
+                    pass  # BM25 sigue funcionando; Groq no se desactiva.
+            retrieval_ready = time.perf_counter()
             answer = answer_question(
                 question, graph, retriever,
                 api_key=get_secret("GROQ_API_KEY"),
-                model=get_secret("GROQ_MODEL", DEFAULT_MODEL),
-                top_k=10,
+                model=chosen_model,
+                top_k=9,
             )
-        st.session_state.messages.append({"role": "assistant", "text": answer.text,
-                                          "evidence": answer.evidence, "method": answer.method,
-                                          "notice": answer.notice})
+            finished = time.perf_counter()
+        st.session_state.messages.append({
+            "role": "assistant", "text": answer.text,
+            "evidence": answer.evidence, "method": answer.method,
+            "notice": answer.notice,
+            "elapsed": finished-started,
+            "preparation": retrieval_ready-started,
+        })
         st.rerun()
     elif submitted:
         st.warning("Selecciona o escribe una pregunta antes de continuar.")
@@ -207,12 +243,17 @@ with tab_chat:
                             unsafe_allow_html=True)
             else:
                 st.markdown(f'<div class="msg-bot"><div class="lbl">Asistente</div>'
-                            f'<div class="txt">{clean_multiline(message["text"])}</div>'
-                            f'<div class="method">Método: {esc(message.get("method", ""))}</div></div>',
+                            f'<div class="txt">{clean_multiline(message["text"])}</div></div>',
                             unsafe_allow_html=True)
+                elapsed = message.get("elapsed")
+                timing = f" · {elapsed:.1f} s" if elapsed is not None else ""
                 if message.get("notice"):
-                    st.info(message["notice"])
-                evidence_view(graph, message.get("evidence", []))
+                    st.warning("Groq no pudo responder. Esta orientación se elaboró sin el modelo; revisa el detalle abajo.")
+                with st.expander("🔎 Fuentes y detalles", expanded=False):
+                    st.caption(f'{message.get("method", "")} {timing}')
+                    if message.get("notice"):
+                        st.caption(message["notice"])
+                    evidence_view(graph, message.get("evidence", []))
         if st.button("🗑️ Limpiar historial", use_container_width=True):
             st.session_state.messages = []
             st.rerun()
@@ -262,9 +303,10 @@ with tab_about:
     stats = graph.stats()
     c1, c2, c3 = st.columns(3)
     c1.metric("Lenguas", stats["languages"])
-    c2.metric("Familias", stats["families"])
+    c2.metric("Familias y subgrupos", stats["families"])
     c3.metric("Con descripción", stats["with_comment"])
 
+    st.caption("El grafo original se conserva sin cambios. Ejecuta `python auditar_grafo.py` para generar un reporte de calidad reproducible.")
     st.markdown('''<div class="about-sec"><h4>🗺️ El proyecto</h4>
 <p>Explorador de un grafo RDF de lenguas indígenas de Sudamérica, con datos asociados
  a Glottolog, Wikidata, Wikipedia y otras fuentes. Cada respuesta puede mostrar
@@ -281,9 +323,9 @@ with tab_about:
     st.markdown('''<div class="about-sec"><h4>⚙️ Arquitectura revisada</h4>
 <p><b>1.</b> RDFLib carga entidades y relaciones, sin parsear Turtle mediante expresiones regulares.<br>
 <b>2.</b> BM25 indexa etiquetas, descripciones y familias lingüísticas.<br>
-<b>3.</b> MiniLM multilingüe reutiliza los embeddings existentes y fusiona rangos mediante RRF (60 % semántico / 40 % léxico).<br>
+<b>3.</b> Modo rápido: BM25 y relaciones RDF. La búsqueda semántica MiniLM se activa cuando seleccionas “Búsqueda semántica ampliada”; su primera carga puede tardar más.<br>
 <b>4.</b> Para países, familias y cantidades se calculan hechos estructurados verificables sobre RDF.<br>
-<b>5.</b> <b>Todas las preguntas</b> pasan a Groq: el LLM redacta la respuesta a partir del contexto calculado y recuperado, citando IDs [G1], [G2]. Si Groq falla, se muestra un respaldo explícitamente identificado.</p>
+<b>5.</b> <b>Todas las preguntas</b> pasan a Groq si la clave está configurada. El LLM redacta una respuesta breve; las fuentes quedan en un panel aparte. Si Groq falla, se informa el motivo y se muestra una orientación breve claramente distinguida.</p>
 <div class="chips"><span class="chip green">GraphRAG</span><span class="chip green">BM25 + RRF</span>
 <span class="chip">RDF / Turtle</span><span class="chip">RDFLib</span>
 <span class="chip">MiniLM multilingüe</span><span class="chip">Groq configurable</span>

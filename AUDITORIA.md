@@ -31,12 +31,12 @@ clasificatorios, no 409 familias de nivel equivalente.
 
 **P0. Cambiar el modelo de Groq.** El modelo usado dejó de estar disponible para
 el nivel gratuito/desarrollador el 16/08/2026. En la actualización, el modelo
-se elige desde `GROQ_MODEL` (por defecto `openai/gpt-oss-120b`).
+se elige desde `GROQ_MODEL` (por defecto `openai/gpt-oss-20b`).
 
-**P0. Respuestas sin dependencia absoluta del LLM.** Antes, el 404 se mostraba
-como mensaje del asistente. Ahora las consultas estructuradas no necesitan LLM,
-y si una llamada externa falla la UI muestra registros recuperados sin disfrazar
-el error como información lingüística.
+**P0. Respuestas naturales con LLM para todas las preguntas.** Antes, el 404 se mostraba
+como mensaje del asistente. Ahora el RDF calcula hechos y Groq redacta el texto
+final para consultas estructuradas y abiertas. Si una llamada falla la UI ofrece
+un aviso explícito y una orientación breve, sin disfrazarla de respuesta del LLM.
 
 ## Prioridad 1 — Validez epistemológica
 

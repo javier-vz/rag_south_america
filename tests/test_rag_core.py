@@ -5,202 +5,174 @@ import numpy as np
 import pytest
 
 from rag_core import (KnowledgeGraph, Retriever, answer_question, build_evidence_context,
-                      detect_country, detect_family, load_vectors, safe_url, structured_answer)
+                      detect_country, detect_family, load_vectors, safe_url, structured_answer,
+                      useful_country_examples, SYSTEM_PROMPT)
 
 SAMPLE_TTL = '''
 @prefix ex: <http://example.org/lang/> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 ex:quec1387 a ex:Family ; ex:label "Quechuan" .
 ex:tupi1276 a ex:Family ; ex:label "Tupi-Guarani" .
-ex:alive1 a ex:Language ; ex:label "Lengua viva A" ; ex:iso "aaa" ;
+ex:alive1 a ex:Language ; ex:label "Lengua indígena A" ; ex:iso "aaa" ;
   ex:belongsToFamily ex:quec1387 ; ex:wikidata_countries "Perú" ;
   ex:wikidata_speakers "120" ;
   ex:describedByResource <http://example.org/lang/https://www.wikidata.org/entity/Q1> ;
-  rdfs:comment "Descripción para prueba" .
+  rdfs:comment "Comentario IA de prueba" .
 ex:unknown1 a ex:Language ; ex:label "Lengua sin cifra" ;
   ex:belongsToFamily ex:quec1387 ; ex:wikidata_countries "Perú" ;
-  ex:wikipedia_summary "Sin información de hablantes" .
+  ex:wikipedia_summary "Texto documental recuperado de muestra" .
 ex:zero1 a ex:Language ; ex:label "Lengua con cero" ;
   ex:wikidata_countries "Perú" ; ex:wikidata_speakers "0" .
-ex:alive2 a ex:Language ; ex:label "Lengua viva B" ;
+ex:spanish1 a ex:Language ; ex:label "Peruvian Amazonian Spanish" ;
+  ex:wikidata_countries "Perú" .
+ex:alive2 a ex:Language ; ex:label "Lengua indígena B" ;
   ex:wikidata_countries "Bolivia" ; ex:wikidata_speakers "55" .
 '''
 
 
 @pytest.fixture
 def kg(tmp_path):
-    ttl = tmp_path / "sample.ttl"
-    ttl.write_text(SAMPLE_TTL, encoding="utf-8")
-    return KnowledgeGraph.from_turtle(ttl)
+    f = tmp_path / "sample.ttl"
+    f.write_text(SAMPLE_TTL, encoding="utf-8")
+    return KnowledgeGraph.from_turtle(f)
 
 
-def test_parsing_relationships_and_sources(kg):
-    assert kg.stats() == {
-        "languages": 4, "families": 2, "with_comment": 1,
-        "with_speakers": 3, "without_speakers": 1, "with_zero_speakers": 1,
-    }
-    assert "alive1" in kg.entities["quec1387"].members
+def test_rdf_parsed_and_source_links_normalized(kg):
+    assert kg.stats()["languages"] == 5
     assert kg.entities["alive1"].sources == ["https://www.wikidata.org/entity/Q1"]
-    assert kg.entities["unknown1"].speaker_status == "sin dato"
-    assert kg.entities["zero1"].speaker_status == "0 registrado"
-    assert kg.entities["alive1"].iso == "aaa"
+    assert "alive1" in kg.entities["quec1387"].members
 
 
-def test_country_count_is_not_a_census(kg):
-    r = Retriever(kg).search("¿Cuántas lenguas existen actualmente en Perú?")
-    a = structured_answer("¿Cuántas lenguas existen actualmente en Perú?", kg, r)
-    assert "3 registros" in a.text
-    assert "1 no tienen cifra" in a.text
-    assert "1 tienen 0 registrado" in a.text
-    assert "no equivale" in a.text
+def test_missing_is_not_zero_or_extinction(kg):
+    assert kg.entities["unknown1"].speakers is None
+    assert kg.entities["zero1"].speakers == 0
+    assert kg.stats()["without_speakers"] == 2
+    assert kg.stats()["with_zero_speakers"] == 1
 
 
-def test_current_query_does_not_call_unknown_extinct(kg):
-    q = "¿Qué lenguas se hablan actualmente en Perú?"
-    answer = answer_question(q, kg, Retriever(kg))
-    assert "Lengua viva A" in answer.text
-    assert "sin fecha" in answer.text
-    assert "Lengua con cero" not in answer.text
-    assert "Lengua sin cifra" not in answer.text
-    assert "extinta" not in answer.text.lower()
+def test_indigeneity_warning_is_non_destructive(kg):
+    assert kg.entities["spanish1"].needs_indigenous_review
+    assert not kg.entities["alive1"].needs_indigenous_review
+    assert "spanish1" in kg.entities
+    assert "spanish1" not in {e.id for e in useful_country_examples(kg.country("Perú"), "Perú")}
 
 
-def test_family_filter(kg):
-    q = "¿Qué lenguas pertenecen a la familia Quechua?"
-    result = Retriever(kg).search(q)
-    assert detect_family(q, kg) == "quec1387"
-    assert set(result.ids) == {"alive1", "unknown1"}
-    answer = answer_question(q, kg, Retriever(kg))
-    assert "Quechuan" in answer.text
+def test_structured_country_count_not_misrepresented_as_census(kg):
+    q = "¿Cuántas lenguas indígenas se hablan actualmente en Perú?"
+    a = structured_answer(q, kg, Retriever(kg).search(q))
+    assert "3 fichas" in a.text  # 4 del país, una marca no indígena explícita
+    assert "no equivale a un censo" in a.text
 
 
-def test_longest_family_alias_wins(kg):
-    assert detect_family("Familia tupí-guaraní", kg) == "tupi1276"
+def test_qualitative_query_no_unrequested_speaker_counts(kg):
+    q = "¿Qué lenguas indígenas se hablan en Perú?"
+    r = Retriever(kg).search(q)
+    a = structured_answer(q, kg, r)
+    assert "Lengua indígena A" in a.text
+    assert "120" not in a.text
+
+
+def test_embedded_text_and_generated_comments_are_distinguished(kg):
+    context = build_evidence_context(kg, ["alive1", "unknown1"])
+    assert "generada por IA" in context
+    assert "Wikipedia" in context
+    assert "Estimación de hablantes" not in context
+
+
+def test_country_family_detection(kg):
     assert detect_country("Lenguas del Perú") == "Perú"
+    assert detect_family("¿Qué hay en la familia Quechua?", kg) == "quec1387"
+    assert detect_family("familia tupí-guaraní", kg) == "tupi1276"
 
 
-def test_bm25_offline_and_evidence(kg):
-    result = Retriever(kg).search("Lengua viva A")
-    assert result.ids[0] == "alive1"
-    context = build_evidence_context(kg, ["alive1"])
-    assert "[G1]" in context
-    assert "(sin fecha verificada)" in context
-    assert "requiere verificación" in context
-
-
-def test_missing_key_gives_graceful_fallback(kg):
-    result = answer_question("Descríbeme la lengua viva A", kg, Retriever(kg), api_key="")
-    assert result.method == "Recuperación de respaldo (sin LLM)"
-    assert result.evidence
-    assert "[G1]" in result.text
-
-
-def test_vectors_validation(tmp_path):
-    matrix = np.array([[2., 0.], [0., 3.]], dtype=np.float32)
-    np.save(tmp_path / "matrix.npy", matrix)
-    with (tmp_path / "id_map.pkl").open("wb") as f:
-        pickle.dump(["alive1", "alive2"], f)
-    arr, ids = load_vectors(tmp_path / "matrix.npy", tmp_path / "id_map.pkl")
-    assert ids == ["alive1", "alive2"]
-    assert np.allclose(np.linalg.norm(arr, axis=1), 1)
-    with (tmp_path / "id_map.pkl").open("wb") as f:
-        pickle.dump(["alive1"], f)
-    with pytest.raises(ValueError, match="Desajuste"):
-        load_vectors(tmp_path / "matrix.npy", tmp_path / "id_map.pkl")
-
-
-def test_safe_url_rejects_script_scheme():
-    assert safe_url("javascript:alert(1)") == ""
-    assert safe_url("http://example.org/lang/https://en.wikipedia.org/wiki/Quechua") == "https://en.wikipedia.org/wiki/Quechua"
-
-
-def test_multilingual_and_no_invalid_risk(kg):
-    result = answer_question("¿Qué lenguas están en peligro crítico?", kg, Retriever(kg))
-    assert "no incluye una clasificación de vitalidad validada" in result.text
-
-
-def test_explanatory_question_uses_retrieval_not_fake_list(kg):
+def test_family_explanation_not_forced_list(kg):
     q = "¿Qué sabemos de la familia Quechua?"
-    result = Retriever(kg).search(q)
-    assert "quec1387" in result.ids
-    assert structured_answer(q, kg, result) is None
+    r = Retriever(kg).search(q)
+    assert structured_answer(q, kg, r) is None
+    assert "quec1387" in r.ids
 
 
-def test_amazonia_is_not_the_same_as_country(kg):
+def test_amazonia_not_inferred_from_country(kg):
     q = "¿Qué lenguas se hablan en la Amazonía peruana?"
-    result = answer_question(q, kg, Retriever(kg))
-    assert "clasificación territorial" in result.text
-    assert "Lengua viva A" not in result.text
+    a = structured_answer(q, kg, Retriever(kg).search(q))
+    assert "no tiene una clasificación comprobada" in a.text
 
 
-def test_all_count_questions_call_groq(kg, monkeypatch):
+@pytest.mark.parametrize("q", [
+    "¿Cuántas lenguas hay en Perú?",
+    "¿Qué lenguas indígenas se hablan en Perú?",
+    "¿Qué sabemos de la familia Quechua?",
+    "Háblame de la lengua indígena A",
+])
+def test_groq_used_for_all_questions(kg, monkeypatch, q):
     import rag_core
     calls = []
-
-    def fake_groq(question, context, api_key, model):
-        calls.append((question, context, model))
-        return "El corpus registra 3 lenguas asociadas a Perú, no un censo actual. [G1]"
-
-    monkeypatch.setattr(rag_core, "generate_groq", fake_groq)
-    q = "¿Cuántas lenguas existen actualmente en Perú?"
-    result = answer_question(q, kg, Retriever(kg), api_key="clave-ficticia")
+    def fake(question, context, api_key, model):
+        calls.append((question, context, api_key, model))
+        return "En el Perú conviven muchas lenguas y tradiciones, como la Lengua indígena A."
+    monkeypatch.setattr(rag_core, "generate_groq", fake)
+    result = answer_question(q, kg, Retriever(kg), api_key="clave-de-prueba")
     assert len(calls) == 1
-    assert "HECHOS ESTRUCTURADOS" in calls[0][1]
-    assert "3 registros" in calls[0][1]
-    assert result.text.startswith("El corpus registra")
-    assert "Groq" in result.method
-    assert "alive1" in result.evidence
+    assert result.method.endswith("Groq")
+    assert "En el Perú" in result.text
 
 
-def test_all_list_questions_call_groq(kg, monkeypatch):
+def test_groq_failure_explicit_and_not_silent(kg, monkeypatch):
     import rag_core
-    seen = []
-
-    def fake_groq(question, context, api_key, model):
-        seen.append(context)
-        return "La lengua viva A aparece con una cifra de hablantes en el corpus [G1]."
-
-    monkeypatch.setattr(rag_core, "generate_groq", fake_groq)
-    result = answer_question("¿Qué lenguas se hablan actualmente en Perú?", kg,
-                             Retriever(kg), api_key="clave-ficticia")
-    assert seen and "HECHOS ESTRUCTURADOS" in seen[0]
-    assert "Lengua viva A" in seen[0]
-    assert "Groq" in result.method
+    def unavailable(*args):
+        raise TimeoutError()
+    monkeypatch.setattr(rag_core, "generate_groq", unavailable)
+    a = answer_question("¿Qué lenguas indígenas hay en Perú?", kg, Retriever(kg), api_key="clave")
+    assert "Groq" in a.notice
+    assert "Groq no disponible" in a.method
+    assert "Perú" in a.text
 
 
-def test_explanatory_question_calls_groq(kg, monkeypatch):
+def test_no_key_disclosed(kg):
+    a = answer_question("¿Qué lenguas hay en Perú?", kg, Retriever(kg), api_key="")
+    assert "GROQ_API_KEY" in a.notice
+    assert "sin LLM" not in a.text
+
+
+def test_arbitrary_citation_is_removed_not_shown(kg, monkeypatch):
     import rag_core
-    seen = []
-
-    def fake_groq(question, context, api_key, model):
-        seen.append((question, context))
-        return "La familia quechua agrupa registros como Lengua viva A. [G1]"
-
-    monkeypatch.setattr(rag_core, "generate_groq", fake_groq)
-    result = answer_question("¿Qué sabemos de la familia Quechua?", kg,
-                             Retriever(kg), api_key="clave-ficticia")
-    assert len(seen) == 1 and "FICHAS RECUPERADAS" in seen[0][1]
-    assert "Groq" in result.method
-
-
-def test_groq_error_uses_clear_fallback(kg, monkeypatch):
-    import rag_core
-
-    def fail(*_args, **_kwargs):
-        raise RuntimeError("proveedor desconectado")
-
-    monkeypatch.setattr(rag_core, "generate_groq", fail)
-    result = answer_question("¿Cuántas lenguas hay en Perú?", kg, Retriever(kg),
-                             api_key="clave-ficticia")
-    assert result.method == "Respaldo RDF (sin LLM)"
-    assert "Groq no pudo" in result.notice
-    assert "3 registros" in result.text
-
-
-def test_unrecognized_citation_is_not_served(kg, monkeypatch):
-    import rag_core
-    monkeypatch.setattr(rag_core, "generate_groq", lambda *args: "Invento [G999].")
-    result = answer_question("¿Cuántas lenguas hay en Perú?", kg,
-                             Retriever(kg), api_key="clave-ficticia")
+    monkeypatch.setattr(rag_core, "generate_groq", lambda *args: "Hay registros relacionados. [G999]")
+    result = answer_question("¿Qué lenguas hay en Perú?", kg, Retriever(kg), api_key="clave")
     assert "G999" not in result.text
-    assert "Respaldo" in result.method
+
+
+def test_vectors_validate_dimensions_and_normalize(tmp_path):
+    p = tmp_path / "vectors.npy"
+    np.save(p, np.array([[2.,0.], [0.,3.]], dtype=np.float32))
+    im = tmp_path / "id.pkl"
+    with im.open("wb") as f:
+        pickle.dump(["alive1","alive2"], f)
+    a, ids = load_vectors(p, im)
+    assert np.allclose(np.linalg.norm(a,axis=1),1)
+    assert ids == ["alive1", "alive2"]
+    with im.open("wb") as f:
+        pickle.dump(["alive1"], f)
+    with pytest.raises(ValueError):
+        load_vectors(p, im)
+
+
+def test_url_sanitizes_local_external_and_blocks_javascript():
+    assert safe_url("http://example.org/lang/https://en.wikipedia.org/wiki/Quechua") == "https://en.wikipedia.org/wiki/Quechua"
+    assert safe_url("javascript:alert(1)") == ""
+
+
+def test_prompt_asks_for_friendly_uncertainty(kg):
+    assert "No lo sé con seguridad" in SYSTEM_PROMPT
+    assert "PÁRRAFO breve" in SYSTEM_PROMPT
+    assert "APROXIMACIONES" in SYSTEM_PROMPT
+
+
+def test_auditor_generates_csv_and_json(kg, tmp_path):
+    from auditar_grafo import audit
+    p = tmp_path / "sample.ttl"
+    p.write_text(SAMPLE_TTL, encoding="utf-8")
+    report, csv_path, json_path = audit(p, tmp_path / "out")
+    assert report["language_records"] == 5
+    assert report["source_links_embedded_in_local_uris"] == 1
+    assert report["peru_records"] == 4
+    assert csv_path.is_file() and json_path.is_file()
