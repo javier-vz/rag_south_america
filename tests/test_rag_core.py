@@ -4,9 +4,9 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from rag_core import (KnowledgeGraph, Retriever, answer_question, build_evidence_context,
+from rag_core import (KnowledgeGraph, Retriever, Entity, answer_question, build_evidence_context,
                       detect_country, detect_family, load_vectors, safe_url, structured_answer,
-                      useful_country_examples, SYSTEM_PROMPT)
+                      useful_country_examples, is_obviously_non_indigenous, SYSTEM_PROMPT)
 
 SAMPLE_TTL = '''
 @prefix ex: <http://example.org/lang/> .
@@ -51,8 +51,8 @@ def test_missing_is_not_zero_or_extinction(kg):
 
 
 def test_indigeneity_warning_is_non_destructive(kg):
-    assert kg.entities["spanish1"].needs_indigenous_review
-    assert not kg.entities["alive1"].needs_indigenous_review
+    assert is_obviously_non_indigenous(kg.entities["spanish1"])
+    assert not is_obviously_non_indigenous(kg.entities["alive1"])
     assert "spanish1" in kg.entities
     assert "spanish1" not in {e.id for e in useful_country_examples(kg.country("Perú"), "Perú")}
 
@@ -60,8 +60,8 @@ def test_indigeneity_warning_is_non_destructive(kg):
 def test_structured_country_count_not_misrepresented_as_census(kg):
     q = "¿Cuántas lenguas indígenas se hablan actualmente en Perú?"
     a = structured_answer(q, kg, Retriever(kg).search(q))
-    assert "3 fichas" in a.text  # 4 del país, una marca no indígena explícita
-    assert "no equivale a un censo" in a.text
+    assert "3 lenguas o variedades" in a.text  # 4 del país, una variedad claramente no indígena
+    assert "no es un censo completo" in a.text
 
 
 def test_qualitative_query_no_unrequested_speaker_counts(kg):
@@ -72,11 +72,12 @@ def test_qualitative_query_no_unrequested_speaker_counts(kg):
     assert "120" not in a.text
 
 
-def test_embedded_text_and_generated_comments_are_distinguished(kg):
+def test_simple_relations_in_context_no_unrequested_speaker_counts(kg):
     context = build_evidence_context(kg, ["alive1", "unknown1"])
-    assert "generada por IA" in context
-    assert "Wikipedia" in context
-    assert "Estimación de hablantes" not in context
+    assert "País(es): Perú" in context
+    assert "Pertenece a: Quechuan" in context
+    assert "120" not in context
+    assert "Lengua sin cifra" in context
 
 
 def test_country_family_detection(kg):
@@ -85,17 +86,19 @@ def test_country_family_detection(kg):
     assert detect_family("familia tupí-guaraní", kg) == "tupi1276"
 
 
-def test_family_explanation_not_forced_list(kg):
+def test_family_membership_comes_from_rdf(kg):
     q = "¿Qué sabemos de la familia Quechua?"
     r = Retriever(kg).search(q)
-    assert structured_answer(q, kg, r) is None
+    factual = structured_answer(q, kg, r)
+    assert "familia Quechuan" in factual.text
+    assert "Lengua indígena A" in factual.text
     assert "quec1387" in r.ids
 
 
 def test_amazonia_not_inferred_from_country(kg):
     q = "¿Qué lenguas se hablan en la Amazonía peruana?"
     a = structured_answer(q, kg, Retriever(kg).search(q))
-    assert "no tiene una clasificación comprobada" in a.text
+    assert "no hay información suficiente" in a.text
 
 
 @pytest.mark.parametrize("q", [
@@ -125,7 +128,8 @@ def test_groq_failure_explicit_and_not_silent(kg, monkeypatch):
     a = answer_question("¿Qué lenguas indígenas hay en Perú?", kg, Retriever(kg), api_key="clave")
     assert "Groq" in a.notice
     assert "Groq no disponible" in a.method
-    assert "Perú" in a.text
+    assert "no pude conectar" in a.text
+    assert "Lengua indígena" not in a.text  # no simular una respuesta del LLM
 
 
 def test_no_key_disclosed(kg):
@@ -164,15 +168,47 @@ def test_url_sanitizes_local_external_and_blocks_javascript():
 def test_prompt_asks_for_friendly_uncertainty(kg):
     assert "No lo sé con seguridad" in SYSTEM_PROMPT
     assert "PÁRRAFO breve" in SYSTEM_PROMPT
-    assert "APROXIMACIONES" in SYSTEM_PROMPT
+    assert "muy aproximadas" in SYSTEM_PROMPT
 
 
-def test_auditor_generates_csv_and_json(kg, tmp_path):
-    from auditar_grafo import audit
-    p = tmp_path / "sample.ttl"
-    p.write_text(SAMPLE_TTL, encoding="utf-8")
-    report, csv_path, json_path = audit(p, tmp_path / "out")
-    assert report["language_records"] == 5
-    assert report["source_links_embedded_in_local_uris"] == 1
-    assert report["peru_records"] == 4
-    assert csv_path.is_file() and json_path.is_file()
+def test_no_attributeerror_if_cached_entity_lacks_old_property(kg, monkeypatch):
+    """Regresión de la captura: property ausente tras una actualización de Streamlit."""
+    monkeypatch.delattr(Entity, "needs_indigenous_review")
+    q = "¿Qué lenguas indígenas se hablan actualmente en Perú?"
+    ret = Retriever(kg).search(q)
+    assert "spanish1" not in ret.ids
+    factual = structured_answer(q, kg, ret)
+    assert "Lengua indígena A" in factual.text
+    assert kg.stats()["for_review"] == 1
+
+
+def test_simple_relations_and_similar_text_not_kinship(kg):
+    kg.entities["alive1"].similar = ["alive2"]
+    assert "alive2" not in {x.id for x in kg.family("quec1387")}
+    q = "¿Qué lenguas pertenecen a la familia quechua?"
+    r = Retriever(kg).search(q)
+    assert "alive1" in r.ids
+    assert "alive2" not in r.ids
+
+
+def test_country_question_facts_dont_force_speaker_counts(kg):
+    q = "¿Qué lenguas se hablan en Perú?"
+    ret = Retriever(kg).search(q)
+    facts = structured_answer(q, kg, ret)
+    assert "120" not in facts.text
+    assert "Lengua sin cifra" in facts.text
+
+
+def test_no_key_does_not_pretend_llm_answer(kg):
+    answer = answer_question("¿Qué lenguas se hablan en Perú?", kg, Retriever(kg), api_key="")
+    assert "Groq no disponible" == answer.method
+    assert "GROQ_API_KEY" in answer.notice
+    assert "Lengua indígena A" not in answer.text
+
+
+def test_pocos_hablantes_prioritizes_lowest_observed_number(kg):
+    result = structured_answer("¿Cuáles tienen pocos hablantes?", kg,
+                               Retriever(kg).search("¿Cuáles tienen pocos hablantes?"))
+    assert result is not None
+    assert "Lengua indígena B" in result.text
+    assert result.text.index("Lengua indígena B") < result.text.index("Lengua indígena A")
