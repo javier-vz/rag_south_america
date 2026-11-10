@@ -199,7 +199,8 @@ with tab_chat:
                                     format_func=lambda value: value or t(lang, "question_placeholder"),
                                     label_visibility="collapsed", key=f"question_suggested_{lang}")
         else:
-            question = st.text_input(t(lang, "question_free"), label_visibility="collapsed",
+            # Campo vacío por defecto: el texto de ejemplo nunca debe parecer una respuesta ya escrita.
+            question = st.text_input(t(lang, "question_free"), label_visibility="visible",
                                      placeholder=t(lang, "question_free_placeholder"), max_chars=450,
                                      key=f"question_free_{lang}")
         submitted = st.form_submit_button(t(lang, "ask"), type="primary", use_container_width=True)

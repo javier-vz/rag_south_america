@@ -26,6 +26,13 @@ h1,h2,h3,h4,p,label {color:#e6edf3;}
 .stRadio > div {background:#161b22;border:1px solid #30363d;border-radius:9px;
  padding:.65rem .85rem;gap:1.5rem;}
 .stRadio label, .stSelectbox label, .stTextInput label {color:#b5bec8 !important;font-size:.86rem !important;}
+/* Resaltar suavemente el modo seleccionado; el diseño oscuro/verde se conserva. */
+.stRadio [role="radiogroup"] label:has(input:checked) {
+  background:rgba(46,160,67,.12) !important;
+  box-shadow:inset 0 0 0 1px rgba(46,160,67,.35);
+  border-radius:7px;
+}
+.stRadio [role="radiogroup"] label:has(input:checked) p {color:#e6edf3 !important;}
 .stButton button {border-radius:9px !important;font-weight:650 !important;transition:.12s !important;}
 .stButton button[kind="primary"], .stFormSubmitButton button[kind="primary"] {
  background:#2ea043 !important;border:0 !important;color:white !important;width:100% !important;
