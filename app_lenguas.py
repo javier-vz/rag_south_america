@@ -165,6 +165,8 @@ if "messages" not in st.session_state:
     st.session_state.messages = []
 
 with tab_chat:
+    st.markdown(f"### {t(lang, 'chat_section_title')}")
+    st.caption(t(lang, "chat_section_help"))
     mode = st.radio(t(lang, "mode"), ["suggested", "free"],
                     format_func=lambda value: t(lang, "suggested_mode" if value == "suggested" else "free_mode"),
                     horizontal=True, label_visibility="collapsed", key="question_mode_v6")
@@ -274,6 +276,7 @@ with tab_chat:
         st.caption(t(lang, "empty_chat"))
 
 with tab_explore:
+    st.markdown(t(lang, "explore_intro"))
     c1, c2 = st.columns(2)
     with c1:
         kind_label = st.selectbox(t(lang, "kind"), ["Language", "Family"],
@@ -323,11 +326,11 @@ with tab_explore:
 
 with tab_about:
     st.markdown(f'''<div class="about-sec"><h4>{t(lang, 'about_project_title')}</h4>
-<p>{t(lang, 'about_project')}</p><p>{t(lang, 'about_invite')}</p></div>''', unsafe_allow_html=True)
-    st.markdown(f'''<div class="about-sec"><h4>{t(lang, 'about_relations_title')}</h4>
-<p>{t(lang, 'about_relations')}</p></div>''', unsafe_allow_html=True)
+<p>{t(lang, 'about_project')}</p></div>''', unsafe_allow_html=True)
     st.markdown(f'''<div class="about-sec"><h4>{t(lang, 'about_method_title')}</h4>
 <p>{t(lang, 'about_method')}</p></div>''', unsafe_allow_html=True)
+    st.markdown(f'''<div class="about-sec"><h4>{t(lang, 'about_sources_title')}</h4>
+<p>{t(lang, 'about_sources')}</p></div>''', unsafe_allow_html=True)
     stats = graph.stats()
     c1, c2, c3 = st.columns(3)
     c1.metric(t(lang, "metric_languages"), stats["languages"])
@@ -339,8 +342,7 @@ with tab_about:
 <span class="chip green">{t(lang, 'type_language')} → {t(lang, 'country')}</span>
 <span class="chip">RDF / Turtle</span><span class="chip">RDFLib</span><span class="chip">BM25</span>
 <span class="chip">MiniLM (opcional)</span><span class="chip">Groq · {esc(chosen_model)}</span></div></div>''', unsafe_allow_html=True)
-    st.markdown(f'''<div class="about-sec"><h4>{t(lang, 'about_research_title')}</h4>
-<p>{t(lang, 'about_research')}</p><p>{t(lang, 'about_note')}</p></div>''', unsafe_allow_html=True)
+    st.markdown(f'''<div class="about-sec"><h4>{t(lang, 'about_scope_title')}</h4>
+<p>{t(lang, 'about_scope')}</p></div>''', unsafe_allow_html=True)
 
-st.markdown(f'''<div class="tfooter"><p>🗺️ <b>{esc(t(lang,'footer'))}</b> · GraphRAG</p>
-<p>{esc(t(lang,'footer_sub'))}</p></div>''', unsafe_allow_html=True)
+st.markdown(f'''<div class="tfooter"><p>🗺️ <b>{esc(t(lang,'footer'))}</b> · GraphRAG</p></div>''', unsafe_allow_html=True)
