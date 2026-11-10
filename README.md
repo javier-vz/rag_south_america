@@ -1,29 +1,33 @@
-# RAG_SA — Español / Português (v6)
+# RAG_SA v6.5 — Exploración por país, agrupación y lengua
 
-Esta versión **solo modifica la presentación y el soporte bilingüe** de la v5: conserva el estilo oscuro/verde, el grafo RDF, la búsqueda BM25, MiniLM opcional y las respuestas generadas con Groq. No escribe en GitHub.
+Esta actualización mantiene **el estilo oscuro/verde** y conserva el motor de consultas, el modelo configurado en Groq y los archivos RDF. Introduce únicamente una navegación más compacta en «Explorar» y los textos solicitados en español y portugués.
 
-## Cambios de esta entrega
+## Cambios
 
-- Selector **Español / Português** que traduce las pestañas, botones, filtros, tarjetas, mensajes y sección «Acerca de / Sobre o projeto».
-- Preguntas sugeridas en ambos idiomas, incluyendo **«¿Qué sabes sobre la lengua kariri?» / «O que você sabe sobre a língua kariri?»**.
-- Groq redacta en el idioma elegido, incluso si se escribe una pregunta en el otro idioma. Las relaciones y nombres RDF originales no se traducen ni se modifican.
-- Fichas del explorador con resúmenes amables construidos a partir de relaciones del grafo, sin exhibir los resúmenes fuente en inglés.
-- «Acerca de» ampliado con explicación amigable del proyecto y sección técnica; su inspiración se describe como **manuscrito de investigación**, no como artículo publicado. El manuscrito entregado se titula *Graph-Based Retrieval-Augmented Generation for South American Indigenous Languages: Toward Equitable Access to Digital Cultural Heritage* y enumera a Javier Vera Zúñiga, Dina Cornejo Meza y Wenceslao Palma Muñoz.
-- Pequeñas ampliaciones de vocabulario en portugués para interpretar preguntas sobre países, familias, cantidades y hablantes, sin cambiar el algoritmo de recuperación.
+- **Exploración encadenada:** elige un país, una agrupación principal, un subgrupo opcional y una lengua. Las opciones se limitan a los registros relacionados con los filtros anteriores; ya no se abre una lista plana con todas las familias y subfamilias.
+- **Búsqueda directa:** también puedes buscar una lengua por nombre o código ISO, incluso sin seleccionar un país.
+- **Lenguas sin familia:** quedan accesibles mediante «Sin agrupación registrada», en vez de desaparecer.
+- **Presentación:** explica que el proyecto surge para conversar con datos lingüísticos especializados, especialmente a partir de Glottolog. Describe las aportaciones de Wikipedia y Wikidata y señala que Ethnologue aparece citado en algunas descripciones, **sin atribuirle una importación separada**.
+- **Enlaces:** Glottolog, Wikipedia, Wikidata y Ethnologue tienen sus enlaces visibles en «Acerca de / Sobre o projeto».
+- **Responsable y sugerencias:** Javier Maximiliano Vera Zúñiga — jxvera@gmail.com.
 
-## Inicio
+### Nota sobre «agrupación» y «subgrupo»
 
-1. Copia los archivos de datos originales del proyecto o ejecuta `python descargar_datos.py` (solo lectura).
-2. Instala las dependencias: `pip install -r requirements.txt`.
-3. Copia `.streamlit/secrets.toml.example` a `.streamlit/secrets.toml` y configura **`GROQ_API_KEY`** y, si hace falta, **`GROQ_MODEL`**.
-4. Ejecuta `streamlit run app_lenguas.py`.
-5. Cambia el idioma con el selector **🌐 Idioma / Idioma** situado debajo del encabezado.
+El grafo original registra relaciones entre lenguas y agrupaciones, pero no garantiza una jerarquía explícita entre todos los nodos de familia. Para navegar de lo general a lo específico, los selectores comparan **conjuntos de lenguas asociadas**. Es solo una organización de menús, no una afirmación taxonómica nueva ni una modificación de las relaciones RDF.
 
-No incluyas `.streamlit/secrets.toml` en GitHub. En Streamlit Community Cloud, configura los secretos desde la administración de la aplicación.
+## Actualizar desde v6.4
 
-## Archivos de datos
+Reemplaza `app_lenguas.py` y `locales.py` y **añade** `explore_tree.py` en la misma carpeta del proyecto. No necesitas cambiar `rag_core.py`, `styles.py`, `requirements.txt`, los tres archivos de datos ni tus secretos de Streamlit.
 
-`grafo_enriquecido.ttl` es obligatorio. `embed_matrix_v2.npy` e `id_map_v2.pkl` son opcionales y habilitan la búsqueda semántica ampliada. No se modifican ni se incluyen en el ZIP.
+## Instalar desde el ZIP completo
+
+```bash
+python descargar_datos.py
+pip install -r requirements.txt
+streamlit run app_lenguas.py
+```
+
+Configura `GROQ_API_KEY` en los secretos de Streamlit. No la incluyas en GitHub.
 
 ## Pruebas
 
@@ -31,4 +35,4 @@ No incluyas `.streamlit/secrets.toml` en GitHub. En Streamlit Community Cloud, c
 python -m pytest -q
 ```
 
-Las pruebas usan un grafo pequeño de ejemplo, sin necesitar una API key real. La generación en Groq debe comprobarse en tu despliegue. El historial ya creado no se retraduce al cambiar de idioma; las nuevas respuestas aparecen en el idioma elegido.
+Las pruebas abarcan recuperación, los idiomas, el envío de preguntas y los filtros anidados. La aplicación desplegada con datos y clave de producción todavía requiere comprobación manual.

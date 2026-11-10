@@ -21,6 +21,7 @@ from rag_core import (DEFAULT_MODEL, KnowledgeGraph, Retriever, answer_question,
                       detect_country, detect_family, load_vectors,
                       normalize, readable_groq_error)
 from styles import CSS
+from explore_tree import ExplorerIndex
 from locales import LANGUAGES, QUESTIONS, country_label, t
 
 ROOT = Path(__file__).resolve().parent
@@ -279,52 +280,112 @@ with tab_chat:
 
 with tab_explore:
     st.markdown(t(lang, "explore_intro"))
-    c1, c2 = st.columns(2)
-    with c1:
-        kind_label = st.selectbox(t(lang, "kind"), ["Language", "Family"],
-                                  format_func=lambda value: t(lang, "languages" if value == "Language" else "families"))
-    with c2:
-        countries = sorted({country for e in graph.languages() for country in e.countries})
-        chosen_country = st.selectbox(t(lang, "country"), [""] + countries,
-                                      format_func=lambda value: country_label(lang, value) if value else t(lang, "all_countries"),
-                                      disabled=(kind_label == "Family"))
-    fam_options = sorted(graph.families(), key=lambda e: e.label.lower())
-    fam_lookup = {f"{fam.label} · {fam.id}": fam.id for fam in fam_options}
-    selected_family = st.selectbox(t(lang, "family_filter"), [""] + list(fam_lookup),
-                                    format_func=lambda value: value if value else t(lang, "all_families"),
-                                    disabled=(kind_label == "Family"))
-    search = st.text_input(t(lang, "filter"), placeholder=t(lang, "filter_placeholder"))
-    candidates = graph.languages() if kind_label == "Language" else graph.families()
-    if chosen_country and kind_label == "Language":
-        candidates = [e for e in candidates if chosen_country in e.countries]
-    if selected_family and kind_label == "Language":
-        family_id = fam_lookup[selected_family]
-        candidates = [e for e in candidates if family_id in e.families]
-    if search:
-        from rag_core import normalize
-        candidates = [e for e in candidates if normalize(search) in normalize(e.label + " " + e.iso)]
-    candidates.sort(key=lambda e: e.label.casefold())
-    st.caption(t(lang, "results", n=len(candidates)))
-    for item in candidates[:50]:
-        card(item, graph, lang)
+    explorer = ExplorerIndex.from_graph(graph)
 
-    if candidates:
-        output = io.StringIO()
-        writer = csv.writer(output)
-        # Las columnas de exportación se traducen; las claves RDF no se alteran.
-        if lang == "pt":
-            writer.writerow(["id", "tipo", "lingua_ou_familia", "iso", "paises", "falantes_aproximados", "familias"])
+    # El país reduce las opciones. Sin un país elegido, el buscador permite
+    # encontrar lenguas por nombre o ISO en todo el grafo.
+    country_names = sorted(explorer.countries, key=lambda c: normalize(country_label(lang, c)))
+    chosen_country = st.selectbox(
+        t(lang, "country"), [""] + country_names,
+        format_func=lambda c: country_label(lang, c) if c else t(lang, "explore_country_placeholder"),
+        key="explore_country",
+    )
+    search = st.text_input(t(lang, "explore_search_help"),
+                           placeholder=t(lang, "filter_placeholder"),
+                           key="explore_search")
+    selected_main, selected_sub, selected_deep = "", "", ""
+    active_group = ""
+    ungrouped = False
+
+    if chosen_country:
+        main_ids = explorer.main_groups(chosen_country)
+        without_group = explorer.ungrouped_ids(chosen_country)
+        st.caption(t(lang, "explore_groups_count", n=len(main_ids)))
+        main_options = [""] + main_ids + (["__ungrouped__"] if without_group else [])
+        selected_main = st.selectbox(
+            t(lang, "explore_group"), main_options,
+            format_func=lambda fid: (t(lang, "explore_group_placeholder") if not fid
+                                    else t(lang, "explore_ungrouped", n=len(without_group)) if fid == "__ungrouped__"
+                                    else explorer.label(fid, chosen_country)),
+            key=f"explore_group_{chosen_country}",
+        )
+        ungrouped = (selected_main == "__ungrouped__")
+        if selected_main and not ungrouped:
+            sub_ids = explorer.child_groups(selected_main, chosen_country)
+            if sub_ids:
+                selected_sub = st.selectbox(
+                    t(lang, "explore_subgroup"), [""] + sub_ids,
+                    format_func=lambda fid: (explorer.label(fid, chosen_country) if fid
+                                             else t(lang, "explore_subgroup_placeholder")),
+                    key=f"explore_sub_{chosen_country}_{selected_main}",
+                )
+                if selected_sub:
+                    deep_ids = explorer.child_groups(selected_sub, chosen_country)
+                    if deep_ids:
+                        selected_deep = st.selectbox(
+                            t(lang, "explore_deeper"), [""] + deep_ids,
+                            format_func=lambda fid: (explorer.label(fid, chosen_country) if fid
+                                                     else t(lang, "explore_subgroup_placeholder")),
+                            key=f"explore_deep_{chosen_country}_{selected_sub}",
+                        )
+            active_group = selected_deep or selected_sub or selected_main
+
+    # El filtrado depende SOLO de asociaciones reales de lengua→familia y país.
+    # La organización por subgrupos es una navegación, no una nueva taxonomía.
+    if ungrouped:
+        allowed_ids = set(explorer.ungrouped_ids(chosen_country))
+        language_ids = [eid for eid in explorer.language_ids(chosen_country, query=search)
+                        if eid in allowed_ids]
+    elif chosen_country:
+        language_ids = explorer.language_ids(chosen_country, active_group, query=search)
+    elif search.strip():
+        language_ids = explorer.language_ids("", query=search)
+    else:
+        language_ids = []
+
+    show_language_picker = bool(selected_main or search.strip())
+    if not chosen_country and not search.strip():
+        st.caption(t(lang, "explore_no_country"))
+    elif chosen_country and not show_language_picker:
+        st.caption(t(lang, "explore_country_help"))
+    elif not language_ids:
+        st.info(t(lang, "explore_no_matches"))
+    else:
+        st.caption(t(lang, "explore_count", n=len(language_ids)))
+        selected_language = st.selectbox(
+            t(lang, "explore_language"), [""] + language_ids,
+            format_func=lambda eid: (explorer.languages[eid].label if eid
+                                     else t(lang, "explore_language_placeholder")),
+            key=f"explore_language_{chosen_country}_{active_group}_{ungrouped}_{lang}",
+        )
+        if selected_language in language_ids:
+            card(explorer.languages[selected_language], graph, lang)
+        elif search.strip():
+            for eid in language_ids[:8]:
+                card(explorer.languages[eid], graph, lang)
         else:
-            writer.writerow(["id", "tipo", "lengua_o_familia", "iso", "paises", "hablantes_aproximados", "familias"])
-        for item in candidates:
-            kind_localized = t(lang, "type_language") if item.kind == "Language" else t(lang, "type_family")
-            writer.writerow([item.id, kind_localized, item.label, item.iso,
-                             "; ".join(country_label(lang, country) for country in item.countries),
-                             "" if item.speakers is None else item.speakers,
-                             "; ".join(item.families)])
-        st.download_button(t(lang, "download"), output.getvalue().encode("utf-8-sig"),
-                           file_name="selecao_linguas_rag_sa.csv" if lang == "pt" else "seleccion_lenguas_rag_sa.csv",
-                           mime="text/csv", use_container_width=True)
+            st.caption(t(lang, "explore_select"))
+
+    # Exporta la selección actual. Las lenguas sin agrupación no se pierden.
+    if chosen_country or search.strip():
+        csv_ids = language_ids if language_ids else ([] if search.strip() or selected_main else
+                                                      explorer.language_ids(chosen_country))
+        if csv_ids:
+            output = io.StringIO()
+            writer = csv.writer(output)
+            if lang == "pt":
+                writer.writerow(["id", "tipo", "lingua_ou_familia", "iso", "paises", "falantes_aproximados", "familias"])
+            else:
+                writer.writerow(["id", "tipo", "lengua_o_familia", "iso", "paises", "hablantes_aproximados", "familias"])
+            for eid in csv_ids:
+                item = explorer.languages[eid]
+                writer.writerow([item.id, t(lang, "type_language"), item.label, item.iso,
+                                 "; ".join(country_label(lang, c) for c in item.countries),
+                                 "" if item.speakers is None else item.speakers,
+                                 "; ".join(item.families)])
+            st.download_button(t(lang, "download"), output.getvalue().encode("utf-8-sig"),
+                               file_name="selecao_linguas_rag_sa.csv" if lang == "pt" else "seleccion_lenguas_rag_sa.csv",
+                               mime="text/csv", use_container_width=True)
 
 with tab_about:
     st.markdown(f'''<div class="about-sec"><h4>{t(lang, 'about_project_title')}</h4>
@@ -333,6 +394,18 @@ with tab_about:
 <p>{t(lang, 'about_method')}</p></div>''', unsafe_allow_html=True)
     st.markdown(f'''<div class="about-sec"><h4>{t(lang, 'about_sources_title')}</h4>
 <p>{t(lang, 'about_sources')}</p></div>''', unsafe_allow_html=True)
+    source_links = [
+        ("Glottolog", "https://glottolog.org/"),
+        ("Wikidata", "https://www.wikidata.org/"),
+        ("Wikipedia", "https://www.wikipedia.org/"),
+        ("Ethnologue", "https://www.ethnologue.com/"),
+    ]
+    links_html = " · ".join(
+        f'<a href="{esc(url)}" target="_blank" rel="noopener noreferrer">{esc(label)}</a>'
+        for label, url in source_links
+    )
+    st.markdown(f'<div class="about-sec"><h4>{esc(t(lang, "source_links_label"))}</h4>'
+                f'<p>{links_html}</p></div>', unsafe_allow_html=True)
     stats = graph.stats()
     c1, c2, c3 = st.columns(3)
     c1.metric(t(lang, "metric_languages"), stats["languages"])
@@ -346,5 +419,10 @@ with tab_about:
 <span class="chip">MiniLM (opcional)</span><span class="chip">Groq · {esc(chosen_model)}</span></div></div>''', unsafe_allow_html=True)
     st.markdown(f'''<div class="about-sec"><h4>{t(lang, 'about_scope_title')}</h4>
 <p>{t(lang, 'about_scope')}</p></div>''', unsafe_allow_html=True)
+
+    st.markdown(f'<div class="about-sec"><h4>{esc(t(lang, "about_responsible_title"))}</h4>'
+                f'<p>{esc(t(lang, "about_responsible"))} '
+                f'<a href="mailto:jxvera@gmail.com">jxvera@gmail.com</a></p></div>',
+                unsafe_allow_html=True)
 
 st.markdown(f'''<div class="tfooter"><p>🗺️ <b>{esc(t(lang,'footer'))}</b> · GraphRAG</p></div>''', unsafe_allow_html=True)
