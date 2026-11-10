@@ -1,4 +1,4 @@
-# RAG_SA · Relaciones simples + Groq (v4)
+# RAG_SA · Relaciones simples + Groq (v5)
 
 **No modifica el repositorio de GitHub.** La interfaz mantiene el diseño oscuro y verde.
 
@@ -6,7 +6,7 @@
 
 1. El grafo `grafo_enriquecido.ttl` se lee con RDFLib.
 2. Se buscan relaciones directas: **lengua → país**, **lengua → familia o subgrupo** y **familia → lenguas**.
-3. Para preguntas abiertas, BM25 recupera fichas relevantes. Opcionalmente se puede activar MiniLM + embeddings, usando el índice original.
+3. **Cuando la pregunta menciona una lengua concreta**, primero localiza su ficha por el nombre exacto (ignorando tildes y mayúsculas), y solo después expande relaciones inmediatas si se solicitan. Si no se menciona una lengua concreta, utiliza BM25; opcionalmente MiniLM + embeddings.
 4. **Groq redacta todas las respuestas** en lenguaje natural, idealmente un párrafo amable. Si no hay datos suficientes puede decir «no lo sé». No usa cifras de hablantes a menos que las pidan. No inventa parentescos a partir de `semanticallySimilarTo`.
 5. Si Groq falla, NO finge una respuesta local: muestra el mensaje de conexión y un diagnóstico en una sección desplegable.
 
@@ -32,12 +32,30 @@
 
 ## Problema corregido
 
-El error del 9 de noviembre era un `AttributeError` al leer `needs_indigenous_review` dentro de `Retriever.search`. Ahora la búsqueda usa una función independiente basada en etiquetas, sin depender de ese atributo de la clase. También se versionó la caché de Streamlit (`relaciones-v4`) para no reutilizar entidades antiguas entre despliegues.
+El error del 9 de noviembre era un `AttributeError` al leer `needs_indigenous_review` dentro de `Retriever.search`. Ahora la búsqueda usa una función independiente basada en etiquetas, sin depender de ese atributo de la clase. También se versionó la caché de Streamlit (`relaciones-v5-kariri`) para no reutilizar entidades antiguas entre despliegues.
 
-No es necesario limpiar a mano la caché si los nuevos archivos se suben juntos. Si se mezclan ficheros de v3 y v4 pueden producirse inconsistencias, por lo que **reemplaza `app_lenguas.py` y `rag_core.py` a la vez**.
+No es necesario limpiar a mano la caché si los nuevos archivos se suben juntos. Si se mezclan ficheros de versiones distintas pueden producirse inconsistencias, por lo que **reemplaza `app_lenguas.py` y `rag_core.py` a la vez**.
 
 ## Pruebas
 
 Ejecuta `python -m pytest -q`. Hay pruebas de relaciones RDF, búsquedas por país y familia, llamadas a Groq simuladas y regresión del `AttributeError` cuando desaparece el atributo anterior.
 
 **Límite de verificación:** las pruebas usan un grafo pequeño de muestra. No se ha realizado una consulta a Groq con tu clave desde este entorno. El corpus original no se incluye en el ZIP para no duplicarlo.
+
+## Corrección específica: Kariri y la familia Lengua
+
+La pregunta «¿Qué sabes sobre la lengua Kariri?» estaba seleccionando la familia lingüística **Lengua** (`leng1262`), porque su nombre coincide con el sustantivo común «lengua». Por eso el contexto se llenaba de otras lenguas como Enlhet Norte y Enxet Sur, aunque **Kariri** (`kari1254`) sí se encontraba en el RDF.
+
+En v5:
+
+- Los nombres completos de **lenguas** mencionados en la pregunta tienen prioridad sobre las etiquetas de familias y la búsqueda semántica.
+- La familia llamada *Lengua* se interpreta como tal solo cuando la pregunta menciona explícitamente «familia Lengua» o «subgrupo Lengua».
+- Para una lengua encontrada, el contexto incluye su ficha y una descripción más completa; en el caso de Kariri, el resumen del grafo menciona su uso histórico en Brasil y la revitalización de dzubukuá.
+- Si alguien pregunta por una lengua que no se identifica en el grafo, evitamos devolver candidatos arbitrarios solo porque el texto contenga la palabra «lengua».
+- Groq sigue redactando todas las respuestas. **El diseño oscuro y verde no cambia.**
+
+### Instalación de la corrección
+
+Para actualizar desde v4 basta con sustituir `app_lenguas.py` y `rag_core.py`. Mantén `styles.py`, la carpeta `.streamlit/` con tu configuración y los archivos originales del grafo y los índices. Si prefieres una instalación limpia, el ZIP trae el proyecto completo (sin duplicar los grandes archivos del grafo).
+
+Pruebas de regresión: `python -m pytest -q`. El caso Kariri usa los nombres y la descripción presentes en el TTL público, dentro de una pequeña fixture que reproduce la colisión con la familia Lengua. No se realizaron llamadas reales a Groq (no se dispone de la clave del usuario).

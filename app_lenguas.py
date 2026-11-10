@@ -58,7 +58,7 @@ def has_groq_key() -> bool:
 
 
 @st.cache_resource(show_spinner=False)
-def load_graph(path: str, schema_version: str = "relaciones-v4") -> KnowledgeGraph:
+def load_graph(path: str, schema_version: str = "relaciones-v5-kariri") -> KnowledgeGraph:
     # versionar caché evita mezclar instancias antiguas con clases nuevas
     return KnowledgeGraph.from_turtle(path)
 
@@ -84,6 +84,7 @@ PREGUNTAS = [
     "¿En qué país se habla el matsés?",
     "¿Qué lenguas están relacionadas con el quechua?",
     "¿Qué sabemos sobre el asháninka?",
+    "¿Qué sabes sobre la lengua Kariri?",
     "¿Cuáles son algunas lenguas con pocos hablantes?",
 ]
 
@@ -143,7 +144,7 @@ if not TTL.is_file():
 
 try:
     with st.spinner("Preparando relaciones del grafo…"):
-        graph = load_graph(str(TTL), schema_version="relaciones-v4")
+        graph = load_graph(str(TTL), schema_version="relaciones-v5-kariri")
         matrix, ids = (load_embeddings(str(MATRIX), str(ID_MAP))
                        if MATRIX.is_file() and ID_MAP.is_file() else (None, None))
     retriever = Retriever(graph, matrix, ids)
