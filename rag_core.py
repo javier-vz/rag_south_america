@@ -236,17 +236,20 @@ def match_language_names(question: str, graph: KnowledgeGraph) -> list[str]:
     q = normalize(question)
     hits = []
     for e in graph.languages():
-        label = normalize(e.label)
-        if len(label) < 3:
-            continue
-        match = re.search(rf"(?<!\w){re.escape(label)}(?!\w)", q)
-        if match:
-            hits.append((-(match.end()-match.start()), match.start(), match.end(), e.id))
+        # El identificador de la entidad es su Glottocode. También se
+        # admite en las preguntas libres, además del nombre habitual.
+        for raw in (e.label, e.id):
+            label = normalize(raw)
+            if len(label) < 3:
+                continue
+            match = re.search(rf"(?<!\w){re.escape(label)}(?!\w)", q)
+            if match:
+                hits.append((-(match.end()-match.start()), match.start(), match.end(), e.id))
     hits.sort()
     occupied = []
     selected = []
     for _, start, end, eid in hits:
-        if not any(start < b and a < end for a, b in occupied):
+        if eid not in selected and not any(start < b and a < end for a, b in occupied):
             selected.append(eid)
             occupied.append((start, end))
     return selected

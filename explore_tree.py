@@ -87,7 +87,19 @@ class ExplorerIndex:
         if query.strip():
             term = normalize(query)
             ids = [eid for eid in ids
-                   if term in normalize(self.languages[eid].label + " " + self.languages[eid].iso)]
+                   if any(term in normalize(value) for value in (
+                       self.languages[eid].label, self.languages[eid].id,
+                       self.languages[eid].iso) if value)]
+
+            def relevance(eid: str):
+                entry = self.languages[eid]
+                terms = [normalize(entry.label), normalize(entry.id), normalize(entry.iso)]
+                # Primero una coincidencia exacta (nombre/Glottocode/ISO),
+                # luego el comienzo del nombre y finalmente coincidencias parciales.
+                rank = 0 if term in terms else 1 if any(t.startswith(term) for t in terms if t) else 2
+                return (rank, normalize(entry.label), eid)
+
+            return sorted(ids, key=relevance)
         return sorted(ids, key=lambda eid: normalize(self.languages[eid].label))
 
     def ungrouped_ids(self, country: str) -> list[str]:
