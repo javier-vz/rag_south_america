@@ -1,23 +1,23 @@
-# RAG South America v7.1 — Explorar más sencillo
+# RAG South America v7.1.1 — Corrección de traducciones
 
-Versión basada en v7.0, que incluye la búsqueda por Glottocode y simplifica los recorridos de «Explorar».
+**Corrección exclusiva de compatibilidad de textos.** La v7.1.1 no altera el grafo, Groq, la navegación, las relaciones visuales ni la apariencia.
 
-## Qué cambia
+## Qué causaba el error
 
-- **Búsqueda primero:** se escribe nombre, Glottocode o ISO sin seleccionar un país. La búsqueda se hace en todo el grafo, aunque se haya usado antes un filtro de país.
-- **Una coincidencia:** se abre directamente la ficha y la red local, sin un desplegable adicional.
-- **Varias coincidencias:** se elige una de una lista corta con nombre y Glottocode.
-- **Navegación opcional:** país, agrupación y, solo si se solicita, subgrupo. Puedes escoger una lengua del país sin seleccionar antes su familia.
-- **Kariri:** `kari1254` se encuentra por nombre o Glottocode aunque su ficha no tenga una relación RDF de país; no la añadimos artificialmente a Brasil.
-- **Identificador principal:** Glottocode en fichas y exportaciones; ISO se mantiene cuando existe.
-- Tres idiomas: español, portugués e inglés.
+`app_lenguas.py` v7.1 llama a `explore_search_placeholder`. Si Streamlit ejecuta un `locales.py` anterior (v7.0 o v6.9), la clave no existe y se produce un `KeyError` antes de abrir Explorar. En `locales.py` v7.1 **la clave ya estaba bien definida**.
 
-## Qué NO cambia
+## Solución
 
-Ni Groq ni el motor de respuestas (salvo reconocer Glottocodes en preguntas), el grafo RDF, los datos, la red local de relaciones, las fuentes ni el diseño CSS. GitHub no fue modificado.
+`app_lenguas.py` incorpora traducciones de respaldo para las 20 nuevas claves de la interfaz agregadas después de v6.9, en español, portugués e inglés. Se utiliza `locales.py` como primera fuente; el respaldo solo se usa si falta una clave. Esto evita que una actualización parcial de archivos derribe la aplicación.
 
-## Actualizar desde v7.0
+## Actualización
 
-Reemplaza `app_lenguas.py`, `explore_tree.py`, `rag_core.py`, `locales.py`. Los otros archivos permanecen iguales. La carpeta `.streamlit` conserva su configuración y la API key se mantiene en Streamlit Secrets.
+Para aplicar la corrección desde v7.1, sustituye `app_lenguas.py` y `locales.py` de forma conjunta. El ZIP mínimo incluye ambos archivos y una prueba de regresión; los demás módulos no cambian. En Streamlit Cloud, reinicia la aplicación si persiste un módulo anterior en memoria.
 
-Ejecutar: `streamlit run app_lenguas.py`.
+No subas `secrets.toml` ni tu clave Groq a GitHub.
+
+## Pruebas
+
+`python -m pytest -q tests`
+
+La prueba nueva reproduce el caso con `locales.py` v7.0 y v6.9 y comprueba los tres idiomas. Se mantienen las demás pruebas del proyecto.

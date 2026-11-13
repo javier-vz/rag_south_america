@@ -17,7 +17,10 @@ def _bridge_with_legacy_locale():
                               for target in n.targets))
     bridge = next(n for n in module.body if isinstance(n, ast.FunctionDef) and n.name == 't')
     namespace = {'_locale_t': lambda lang, key, **kwargs: (_ for _ in ()).throw(KeyError(key))}
-    tiny_module = ast.Module(body=[assignment, bridge], type_ignores=[])
+    extra = next(n for n in module.body if isinstance(n, ast.Assign)
+                 and any(isinstance(target, ast.Name) and target.id == 'V71_COMPAT_TRANSLATIONS'
+                         for target in n.targets))
+    tiny_module = ast.Module(body=[assignment, extra, bridge], type_ignores=[])
     exec(compile(ast.fix_missing_locations(tiny_module), '<translation_bridge>', 'exec'), namespace)
     return namespace['t'], namespace['LEGACY_TRANSLATIONS']
 

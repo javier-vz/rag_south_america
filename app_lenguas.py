@@ -69,16 +69,103 @@ LEGACY_TRANSLATIONS = {'es': {'explore_country_help': 'Selecciona un país para 
                              'comentários ou sugestões sobre o projeto.',
         'source_links_label': 'Recursos e links'}}
 
+# Textos incorporados después de v6.9: permite desplegar archivos por etapas.
+# No sustituye locales.py, que sigue siendo la fuente principal de traducciones.
+V71_COMPAT_TRANSLATIONS = {'en': {'explore_browse_toggle': 'Browse by country and group (optional)',
+        'explore_missing_country': "This entry has no country recorded in the graph's country field.",
+        'explore_other_matches': 'I found a matching entry, but it is not linked to the selected country or '
+                                 'group in this graph. You can still explore it here.',
+        'explore_search_no_results': 'No entry matches that name or code. Try a different spelling.',
+        'explore_search_placeholder': 'Kariri, kari1254, jaqaru…',
+        'explore_search_scope': 'Searching the entire graph; country and family filters are not applied.',
+        'explore_show_subgroups': 'Show subgroups to narrow the selection',
+        'graph_alt': 'Local network of recorded relationships for {name}.',
+        'graph_center': 'Center network here',
+        'graph_click_help': 'Select a point in the network or use the list to open an entry.',
+        'graph_explore_intro': 'Select an entry to explore its relationships in a small network.',
+        'graph_help': 'Select a node to view its entry or explore further. Links represent recorded '
+                      'associations, not text similarity.',
+        'graph_legend': 'Green: center · Yellow: groups · Blue: languages · Gray: countries',
+        'graph_limited': 'Simplified view: {n} additional links or entries are not displayed.',
+        'graph_no_relations': 'This entry has no other structured links available in the graph. You can '
+                              'still consult its description in the entry.',
+        'graph_node_placeholder': 'Or choose an entry from the network…',
+        'graph_node_select': 'Choose a node (mobile-friendly option)',
+        'graph_open': 'Open entry in Explore',
+        'graph_selected': 'Selected: {name}',
+        'graph_title': 'Relationships of {name}'},
+ 'es': {'explore_browse_toggle': 'Explorar por país y agrupación (opcional)',
+        'explore_missing_country': 'Esta ficha no tiene un país registrado en el campo de países del grafo.',
+        'explore_other_matches': 'Encontré la ficha que buscas, pero no figura entre las relaciones del '
+                                 'país o agrupación seleccionados. Puedes consultarla aquí sin cambiar los '
+                                 'datos del grafo.',
+        'explore_search_no_results': 'No encontramos una ficha con ese nombre o código. Puedes probar otra '
+                                     'escritura.',
+        'explore_search_placeholder': 'Kariri, kari1254, jaqaru…',
+        'explore_search_scope': 'Búsqueda en todo el grafo, sin filtros de país o familia.',
+        'explore_show_subgroups': 'Ver subgrupos para precisar la búsqueda',
+        'graph_alt': 'Red local de relaciones documentadas para {name}.',
+        'graph_center': 'Centrar red aquí',
+        'graph_click_help': 'Selecciona un punto de la red o utiliza la lista para abrir una ficha.',
+        'graph_explore_intro': 'Al seleccionar una ficha, también podrás explorar sus relaciones en una red '
+                               'pequeña.',
+        'graph_help': 'Selecciona un nodo para consultar su ficha o continuar explorando. Las conexiones '
+                      'muestran asociaciones registradas, no semejanzas entre textos.',
+        'graph_legend': 'Verde: ficha central · Amarillo: agrupaciones · Azul: lenguas · Gris: países',
+        'graph_limited': 'Vista simplificada: hay {n} relaciones o fichas adicionales fuera de esta vista.',
+        'graph_no_relations': 'Esta ficha no tiene otras relaciones estructuradas disponibles en el grafo. '
+                              'Puedes consultar su descripción en la ficha.',
+        'graph_node_placeholder': 'O selecciona una ficha de la red…',
+        'graph_node_select': 'Elegir un nodo (opción para celular)',
+        'graph_open': 'Abrir ficha en Explorar',
+        'graph_selected': 'Seleccionaste: {name}',
+        'graph_title': 'Relaciones de {name}'},
+ 'pt': {'explore_browse_toggle': 'Explorar por país e agrupamento (opcional)',
+        'explore_missing_country': 'Este registro não tem um país informado no campo de países do grafo.',
+        'explore_other_matches': 'Encontrei o registro que você procura, mas ele não aparece entre as '
+                                 'relações do país ou agrupamento selecionado. Você pode consultá-lo aqui '
+                                 'sem alterar os dados do grafo.',
+        'explore_search_no_results': 'Não encontramos um registro com esse nome ou código. Tente outra '
+                                     'grafia.',
+        'explore_search_placeholder': 'Kariri, kari1254, jaqaru…',
+        'explore_search_scope': 'Pesquisa em todo o grafo, sem filtros de país ou família.',
+        'explore_show_subgroups': 'Ver subgrupos para refinar a pesquisa',
+        'graph_alt': 'Rede local de relações registradas para {name}.',
+        'graph_center': 'Centralizar a rede aqui',
+        'graph_click_help': 'Selecione um ponto da rede ou use a lista para abrir um registro.',
+        'graph_explore_intro': 'Ao selecionar um registro, você também poderá explorar suas relações em uma '
+                               'pequena rede.',
+        'graph_help': 'Selecione um nó para consultar sua ficha ou continuar explorando. As conexões '
+                      'mostram associações registradas, não semelhanças entre textos.',
+        'graph_legend': 'Verde: registro central · Amarelo: agrupamentos · Azul: línguas · Cinza: países',
+        'graph_limited': 'Visualização simplificada: há {n} relações ou registros adicionais fora desta '
+                         'rede.',
+        'graph_no_relations': 'Este registro não tem outras relações estruturadas disponíveis no grafo. '
+                              'Você pode consultar sua descrição na ficha.',
+        'graph_node_placeholder': 'Ou selecione um registro da rede…',
+        'graph_node_select': 'Escolher um nó (opção para celular)',
+        'graph_open': 'Abrir ficha em Explorar',
+        'graph_selected': 'Você selecionou: {name}',
+        'graph_title': 'Relações de {name}'}}
+
+
 def t(language: str, key: str, **kwargs) -> str:
+    """Resuelve textos con prioridad para locales.py y respaldo de compatibilidad.
+
+    La búsqueda de un idioma alternativo no reemplaza una traducción propia.
+    Nunca se imprimen nombres de claves en el sitio público.
+    """
     try:
         return _locale_t(language, key, **kwargs)
     except KeyError as exc:
-        template = LEGACY_TRANSLATIONS.get(language, {}).get(key)
+        # Respaldo para archivos de idioma de v6.9 y v7.0 en la nube.
+        template = (V71_COMPAT_TRANSLATIONS.get(language, {}).get(key)
+                    or LEGACY_TRANSLATIONS.get(language, {}).get(key)
+                    or V71_COMPAT_TRANSLATIONS['es'].get(key)
+                    or LEGACY_TRANSLATIONS['es'].get(key))
         if template is None:
-            # Error legible cuando falte otra traducción no contemplada.
             raise KeyError(
-                f"Falta el texto '{key}' para '{language}'. "
-                "Actualiza locales.py junto con app_lenguas.py."
+                f"Falta el texto '{key}'. Actualiza locales.py junto con app_lenguas.py."
             ) from exc
         return template.format(**kwargs)
 
