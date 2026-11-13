@@ -23,6 +23,7 @@ from rag_core import (DEFAULT_MODEL, KnowledgeGraph, Retriever, answer_question,
 from styles import CSS
 from explore_tree import ExplorerIndex
 from conversation_nav import (resolve_question, navigation_targets, focus_entity)
+from relation_graph import display_local_graph
 from locales import LANGUAGES, QUESTIONS, country_label, t as _locale_t
 
 # Compatibilidad: en una actualización parcial puede seguir cargado locales.py
@@ -400,6 +401,7 @@ with tab_chat:
 
 with tab_explore:
     st.markdown(t(lang, "explore_intro"))
+    st.caption(t(lang, "graph_explore_intro"))
     explorer = ExplorerIndex.from_graph(graph)
     focus = st.session_state.get("nav_focus")
     if focus:
@@ -412,6 +414,10 @@ with tab_explore:
             else:
                 st.caption(t(lang, "nav_from_answer"))
                 card(focused, graph, lang)
+                # v7.0: vista local de las relaciones RDF, sin alterar las fichas.
+                display_local_graph(graph, focused.kind.lower(), focused.id, lang,
+                                    t, country_label, open_in_explorer,
+                                    scope="focused", expanded=True)
                 if focus_kind == "language":
                     related = navigation_targets(graph, subject_ids=[focused.id])[1:]
                     if related:
@@ -515,6 +521,14 @@ with tab_explore:
         )
         if selected_language in language_ids:
             card(explorer.languages[selected_language], graph, lang)
+            # Evitar mostrar dos veces el mismo grafo cuando la ficha se abrió
+            # previamente desde un mensaje de la conversación.
+            same_focus = (focus and focus.get("kind") == "language"
+                          and focus.get("value") == selected_language)
+            if not same_focus:
+                display_local_graph(graph, "language", selected_language, lang,
+                                    t, country_label, open_in_explorer,
+                                    scope="selected", expanded=True)
         elif search.strip():
             for eid in language_ids[:8]:
                 card(explorer.languages[eid], graph, lang)

@@ -342,6 +342,57 @@ NEW_NAV_TEXTS = {
 for _language, _new_texts in NEW_NAV_TEXTS.items():
     STRINGS[_language].update(_new_texts)
 
+# v7.0: textos de la vista local de relaciones (sin cambiar textos existentes).
+GRAPH_TEXTS = {
+    "es": {
+        "graph_title": "Relaciones de {name}",
+        "graph_explore_intro": "Al seleccionar una ficha, también podrás explorar sus relaciones en una red pequeña.",
+        "graph_legend": "Verde: ficha central · Amarillo: agrupaciones · Azul: lenguas · Gris: países",
+        "graph_help": "Selecciona un nodo para consultar su ficha o continuar explorando. Las conexiones muestran asociaciones registradas, no semejanzas entre textos.",
+        "graph_alt": "Red local de relaciones documentadas para {name}.",
+        "graph_node_select": "Elegir un nodo (opción para celular)",
+        "graph_node_placeholder": "O selecciona una ficha de la red…",
+        "graph_limited": "Vista simplificada: hay {n} relaciones o fichas adicionales fuera de esta vista.",
+        "graph_no_relations": "Esta ficha no tiene otras relaciones estructuradas disponibles en el grafo. Puedes consultar su descripción en la ficha.",
+        "graph_selected": "Seleccionaste: {name}",
+        "graph_open": "Abrir ficha en Explorar",
+        "graph_center": "Centrar red aquí",
+        "graph_click_help": "Selecciona un punto de la red o utiliza la lista para abrir una ficha.",
+    },
+    "pt": {
+        "graph_title": "Relações de {name}",
+        "graph_explore_intro": "Ao selecionar um registro, você também poderá explorar suas relações em uma pequena rede.",
+        "graph_legend": "Verde: registro central · Amarelo: agrupamentos · Azul: línguas · Cinza: países",
+        "graph_help": "Selecione um nó para consultar sua ficha ou continuar explorando. As conexões mostram associações registradas, não semelhanças entre textos.",
+        "graph_alt": "Rede local de relações registradas para {name}.",
+        "graph_node_select": "Escolher um nó (opção para celular)",
+        "graph_node_placeholder": "Ou selecione um registro da rede…",
+        "graph_limited": "Visualização simplificada: há {n} relações ou registros adicionais fora desta rede.",
+        "graph_no_relations": "Este registro não tem outras relações estruturadas disponíveis no grafo. Você pode consultar sua descrição na ficha.",
+        "graph_selected": "Você selecionou: {name}",
+        "graph_open": "Abrir ficha em Explorar",
+        "graph_center": "Centralizar a rede aqui",
+        "graph_click_help": "Selecione um ponto da rede ou use a lista para abrir um registro.",
+    },
+    "en": {
+        "graph_title": "Relationships of {name}",
+        "graph_explore_intro": "Select an entry to explore its relationships in a small network.",
+        "graph_legend": "Green: center · Yellow: groups · Blue: languages · Gray: countries",
+        "graph_help": "Select a node to view its entry or explore further. Links represent recorded associations, not text similarity.",
+        "graph_alt": "Local network of recorded relationships for {name}.",
+        "graph_node_select": "Choose a node (mobile-friendly option)",
+        "graph_node_placeholder": "Or choose an entry from the network…",
+        "graph_limited": "Simplified view: {n} additional links or entries are not displayed.",
+        "graph_no_relations": "This entry has no other structured links available in the graph. You can still consult its description in the entry.",
+        "graph_selected": "Selected: {name}",
+        "graph_open": "Open entry in Explore",
+        "graph_center": "Center network here",
+        "graph_click_help": "Select a point in the network or use the list to open an entry.",
+    },
+}
+for _language, _texts in GRAPH_TEXTS.items():
+    STRINGS[_language].update(_texts)
+
 COUNTRY_DISPLAY = {
  "pt": {"Perú": "Peru", "Colombia": "Colômbia", "Bolivia": "Bolívia", "Ecuador": "Equador", "Paraguay": "Paraguai", "Chile": "Chile", "Surinam": "Suriname", "Panamá": "Panamá", "Argentina": "Argentina", "Venezuela": "Venezuela", "Guyana": "Guiana", "Uruguay": "Uruguai", "Francia": "França", "Brasil": "Brasil", "Trinidad y Tobago": "Trinidad e Tobago"},
  "en": {"Perú": "Peru", "Colombia": "Colombia", "Bolivia": "Bolivia", "Ecuador": "Ecuador", "Paraguay": "Paraguay", "Surinam": "Suriname", "Panamá": "Panama", "Guyana": "Guyana", "Francia": "France", "Brasil": "Brazil", "Trinidad y Tobago": "Trinidad and Tobago", "Venezuela": "Venezuela", "Chile": "Chile", "Argentina": "Argentina", "Uruguay": "Uruguay"}

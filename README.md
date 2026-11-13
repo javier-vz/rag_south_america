@@ -1,77 +1,71 @@
-# RAG South America — v6.9
+# RAG South America — v7.0
 
-**v6.8: continuidad de la conversación · v6.9: navegación desde las respuestas**
+**Nuevo: relaciones visuales en una red local interactiva**
 
-Esta actualización parte de la versión trilingüe v6.7. Mantiene el diseño oscuro/verde, las tres lenguas de la interfaz, la recuperación RDF/BM25 (con MiniLM opcional) y **Groq como generador de todas las respuestas**.
+Esta versión continúa las mejoras de **v6.8 (preguntas de seguimiento)** y **v6.9 (navegación contextual desde las respuestas)**. Conserva el estilo oscuro y verde, la interfaz en español, portugués e inglés, el explorador anidado y **Groq como generador de respuestas**.
 
-## Qué se añadió
+## Qué añade la v7.0
 
-### v6.8 — Seguimiento de preguntas
+Dentro de **Explorar** aparece una red local cuando se abre una ficha de lengua o familia:
 
-Después de «¿Qué sabes sobre la lengua Kariri?», puedes preguntar «¿Y dónde se hablaba?» o «¿Se está intentando recuperar?» sin repetir Kariri. Funciona también con *E onde era falada?* y *And where was it spoken?*.
+- **La ficha consultada aparece en verde**, en el centro del gráfico.
+- **Las agrupaciones lingüísticas aparecen en amarillo**, conectadas con la lengua solo cuando la asociación `belongsToFamily` está en el RDF.
+- **Los países aparecen en gris**, cuando existe la asociación de país en el registro.
+- **Otras lenguas aparecen en azul**, conectadas a una agrupación común, no directamente entre ellas: esto representa pertenencia compartida, **no** una nueva afirmación de parentesco.
 
-- Se conserva **el identificador RDF de la lengua** que acaba de consultarse, no una transcripción completa que pueda introducir errores.
-- Una pregunta sobre otra lengua explícitamente nombrada cambia de tema.
-- Las consultas generales sobre un país no heredan accidentalmente la lengua anterior.
-- Si el nombre de una lengua no aparece en el grafo, el asistente puede reconocer esa falta de información sin asignarle los datos de otra lengua.
-- Limpiar la conversación elimina también la memoria del tema.
-- Las preguntas siguen pasando por Groq y conservan el idioma elegido en la interfaz.
+Puedes **seleccionar un nodo** en el gráfico y pulsar **«Abrir ficha en Explorar»**; si se trata de otra lengua o agrupación, también puedes **centrar la red** allí. Existe un selector equivalente bajo el gráfico para pantallas pequeñas o cuando sea difícil pulsar un nodo. El gráfico permite arrastrar y ampliar la vista mediante los controles habituales de Plotly.
 
-La continuidad se centra en una **lengua identificable**. No es una memoria general ni resuelve todas las referencias ambiguas.
+La red aparece tanto al llegar desde los botones de la conversación como al seleccionar una lengua en el explorador. No añade una cuarta pestaña ni sustituye la navegación que ya funciona.
 
-### v6.9 — Navegación contextual
+### Un grafo deliberadamente pequeño
 
-Debajo de las respuestas aparecen, cuando las relaciones RDF lo permiten, botones como:
+Por defecto muestra **hasta tres agrupaciones, dos países y seis lenguas adicionales** en una ficha de lengua; en una ficha de familia, **hasta nueve lenguas asociadas**. Si hay más registros, lo indica debajo del gráfico.
 
-- **Ver ficha: Jaqaru** → abre la ficha en «Explorar».
-- **Explorar: Aymaran** → abre la agrupación y permite elegir una de sus lenguas registradas.
-- **Ver país: Perú** → abre «Explorar» con el país seleccionado y sus agrupaciones filtradas.
+La red se construye a partir de las relaciones disponibles. **No utiliza `semanticallySimilarTo` como parentesco**, no interpreta el texto de Wikipedia para inventar países o familias y no crea nuevas relaciones jerárquicas. Por ejemplo, Kariri tiene una descripción histórica en el corpus, pero puede no tener relaciones estructuradas de país o familia: en ese caso la red muestra únicamente su ficha y explica la ausencia de enlaces.
 
-Se mantienen las pestañas originales mediante el estado controlado de `st.tabs`, sin reemplazar la interfaz por otra navegación. Los botones **no inventan países ni familias**. Por ejemplo, Kariri puede tener descripción histórica sobre Brasil, pero si el nodo no posee la relación `wikidata_countries`, no se crea un botón de país desde ese dato textual.
+## Actualización mínima desde v6.9
 
-## Instalación / actualización
-
-**Si ya tienes la v6.7:** sustituye los archivos de la actualización mínima:
+Sustituye juntos:
 
 1. `app_lenguas.py`
-2. `rag_core.py`
-3. `locales.py`
-4. `requirements.txt`
-5. Añade el nuevo `conversation_nav.py`.
+2. `locales.py`
+3. `requirements.txt`
 
-No reemplaces tus datos RDF ni tus secretos. El módulo `explore_tree.py` y `styles.py` no han cambiado.
+Y agrega el nuevo módulo **`relation_graph.py`**. Se incluye también una prueba opcional: `tests/test_relation_graph_v70.py`.
 
-**Requisito importante:** usamos `st.tabs(..., on_change="rerun", key="main_tabs")`, disponible en **Streamlit 1.55 o superior**. Por eso se actualizó el mínimo de `requirements.txt` a `streamlit>=1.55,<2`.
+**No hace falta modificar** `rag_core.py`, `conversation_nav.py`, `explore_tree.py`, `styles.py`, los archivos RDF, los embeddings ni tu clave Groq.
+
+El proyecto ahora requiere `plotly>=6,<7` para dibujar la red. Tras copiar los archivos:
 
 ```bash
 pip install -r requirements.txt
 streamlit run app_lenguas.py
 ```
 
-Si comienzas desde cero, usa `python descargar_datos.py` o copia los tres archivos originales del repositorio: `grafo_enriquecido.ttl`, `embed_matrix_v2.npy` e `id_map_v2.pkl`. La búsqueda ampliada con embeddings sigue siendo opcional.
+Si estás comenzando desde el ZIP completo de código, descarga primero los archivos de datos con `python descargar_datos.py` o reutiliza los que ya tienes en el repositorio. **Los ZIP no vuelven a distribuir el grafo ni los embeddings**; permanecen sin cambios.
 
-## Pruebas
+## Verificación
 
 ```bash
 python -m pytest -q
 ```
 
-**95 pruebas automatizadas aprobadas** en el entorno de preparación, incluyendo regresiones de la versión anterior, preguntas de seguimiento en los tres idiomas y navegación por relaciones RDF. La conexión con la cuenta real de Groq y el comportamiento visual en tu despliegue de Streamlit requieren una comprobación manual.
+**116 pruebas aprobadas** en el entorno de preparación. Se incluyen regresiones de las 95 pruebas anteriores y casos nuevos con enlaces válidos, familias grandes, fichas sin relaciones, límite de nodos, selección interactiva y traducciones.
 
-### Comprobación manual recomendada
+### Recorrido manual recomendado
 
-1. Pregunta en español «¿Qué sabes sobre la lengua kariri?»; luego «¿Y dónde se hablaba?». La segunda respuesta debe seguir refiriéndose a Kariri.
-2. Pregunta por Jaqaru; utiliza «Ver ficha», «Explorar: Aymaran» y «Ver país: Perú». Deben abrir «Explorar» con el contexto indicado.
-3. Cambia a Português e English; formula preguntas de seguimiento y verifica que la respuesta use el idioma elegido.
-4. Pregunta por una lengua nueva y confirma que deja de usar la anterior.
-5. Consulta lenguas de Perú y, después, una pregunta sin referente; no debe atribuirle arbitrariamente información de Kariri.
+1. Pregunta **«¿Qué sabes sobre Jaqaru?»**. Debajo de la respuesta usa **«Ver ficha»** y, en **Explorar**, abre «Relaciones de Jaqaru» (si no está ya desplegado).
+2. Selecciona el nodo de la familia **Aymaran** o el país **Perú**. Abre la ficha, o céntrala si es una agrupación.
+3. Desde una lengua adicional de la red, pulsa **«Centrar red aquí»**; comprueba que cambia el foco de la visualización.
+4. Prueba **Kariri**: la descripción de la ficha sigue disponible, pero la red no debe inventar un vínculo con Brasil o con una familia a partir del texto.
+5. Comprueba las mismas acciones con **Português** y **English**, y en una pantalla estrecha usando el selector de nodos.
 
-## Archivos modificados
+**Limitación:** se validó la construcción del grafo y la figura de Plotly mediante pruebas automatizadas; todavía es necesario comprobar los clics y el diseño responsive en el despliegue real de Streamlit. No se realizó una consulta real con tu API key.
 
-`app_lenguas.py`, `rag_core.py`, `locales.py`, `requirements.txt`.
+## Archivos añadidos o modificados
 
-**Archivo nuevo:** `conversation_nav.py` y pruebas `tests/test_conversation_navigation_v69.py`.
-
-**Sin cambios:** `grafo_enriquecido.ttl`, `explore_tree.py`, `styles.py`, embeddings, motor BM25, secretos y modelo Groq configurado.
+- **Modificados:** `app_lenguas.py`, `locales.py`, `requirements.txt`, `README.md`.
+- **Nuevos:** `relation_graph.py`, `tests/test_relation_graph_v70.py`.
+- **Sin cambios:** las demás fuentes del proyecto y sus datos.
 
 **No se modificó GitHub.**

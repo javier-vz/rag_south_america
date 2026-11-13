@@ -4,3 +4,4 @@ numpy>=1.26,<3
 sentence-transformers>=3,<6
 groq>=0.22,<2
 pytest>=8,<10
+plotly>=6,<7
